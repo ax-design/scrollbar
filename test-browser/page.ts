@@ -142,8 +142,11 @@ function motionKey(): string {
     const parts: number[] = [window.scrollX, window.scrollY];
     for (const id of ALL) {
         if (id !== 'page') parts.push(el(id).scrollTop, el(id).scrollLeft);
+        // A thumb that is not made (its bar never showed) does not move.
         for (const name of ['thumb-vertical', 'thumb-horizontal']) {
-            const r = part(id, name).getBoundingClientRect();
+            const thumb = root(id).querySelector<HTMLElement>(partSelector(name));
+            if (!thumb) continue;
+            const r = thumb.getBoundingClientRect();
             parts.push(r.left, r.top, r.width, r.height);
         }
         // The markers follow the scroll too.
@@ -153,6 +156,8 @@ function motionKey(): string {
 }
 
 let sampler: { id: string; rows: Drawn[]; frame: number } | null = null;
+let identities = 0;
+let pageSlot: { el: HTMLElement; parent: Node; next: Node | null } | null = null;
 
 type Scroller = HTMLElement & { refresh(): void; rectCalls?: number; spied?: boolean };
 
@@ -546,6 +551,53 @@ const axTest = {
 
     display(id: string, name: string): string {
         return getComputedStyle(target(id, name)).display;
+    },
+
+    // The page scrollbar out of the document, and back where it was.
+    detachPage(): void {
+        const page = document.getElementById('page');
+        if (!page) return;
+        pageSlot = { el: page, parent: page.parentNode!, next: page.nextSibling };
+        page.remove();
+    },
+
+    attachPage(): void {
+        if (pageSlot) pageSlot.parent.insertBefore(pageSlot.el, pageSlot.next);
+        pageSlot = null;
+    },
+
+    hasLuna(): boolean {
+        return hasScrollbarKit('luna');
+    },
+
+    defineLuna(): void {
+        if (!hasScrollbarKit('luna')) defineLunaKit();
+    },
+
+    // Whether the part element is made (parts are made when the layout first needs them).
+    made(id: string, name: string): boolean {
+        if (name.startsWith('marker:')) return !!root(id).querySelector(`[data-id="${name.slice(7)}"]`);
+        if (name === 'card') return !!root(id).querySelector('.cards > *');
+        return !!root(id).querySelector(partSelector(name));
+    },
+
+    // A number that stays with the element: the same element gives the same one.
+    identity(id: string, name: string): string {
+        const node = target(id, name) as HTMLElement & { __identity?: number };
+        if (node.__identity === undefined) node.__identity = ++identities;
+        return String(node.__identity);
+    },
+
+    // How many part elements of each kind are made, by their tag's kind ("thumb", "button", ...).
+    madeCount(id: string): Record<string, number> {
+        const out: Record<string, number> = {};
+        const r = root(id);
+        const names = ['thumb', 'button', 'track', 'track-piece', 'corner', 'marker', 'card'];
+        for (const node of Array.from(r.querySelectorAll('*'))) {
+            const m = /^ax-scrollbar-(?:[a-z0-9]+-)?(thumb|button|track-piece|track|corner|marker|card)$/.exec(node.localName);
+            if (m && names.includes(m[1])) out[m[1]] = (out[m[1]] || 0) + 1;
+        }
+        return out;
     },
 
     hostAttr(id: string, name: string): string {

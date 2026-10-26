@@ -1,7 +1,7 @@
 import { PRIORITY_IDLE, PRIORITY_POINTER, PRIORITY_PRESSED, services } from '@ax-design/surface';
 import type { FrameClient, Quality } from '@ax-design/surface';
 import { Bar } from './bar.js';
-import type { BarState } from './bar.js';
+import type { BarHidden, BarState } from './bar.js';
 import { CardLayer } from './cards.js';
 import { followThumb } from './follow.js';
 import type { Shown } from './follow.js';
@@ -14,7 +14,7 @@ import { MarkerSet } from './markers.js';
 import type { PlacedMarker } from './markers.js';
 import { layoutAxis, physical, snapLayout } from './geometry.js';
 import type { AxisLayout, AxisMetrics } from './geometry.js';
-import { createPart, partClasses, scrollbarKit, whenKitDefined } from './kits.js';
+import { PART_KINDS, createPart, partClasses, scrollbarKit, whenKitDefined } from './kits.js';
 import type { ScrollbarKit } from './kits.js';
 import { Piece, isPart, writeStyle } from './piece.js';
 import type { ScrollTarget } from './target.js';
@@ -58,6 +58,8 @@ interface FrameRead {
     // Where the markers are in the content, when they were measured (a new list, or elements that may have moved).
     positions: Map<ScrollMarker, number> | null;
     layout: LayoutRead | null;
+    // The layout was read before the parts of a bar that is shown were made: nothing is drawn from it.
+    stale: boolean;
     // The bar and the track of an open card, as laid out now.
     card: { axis: Axis; barRect: DOMRect; area: DOMRect } | null;
     // Computed: the thumb of each axis as it is and as it is drawn (null for a bar that is not drawn).
@@ -164,9 +166,12 @@ const inset = (n: number): string => (n > 0 ? `${n}px` : '');
 
 const devicePixelRatio = (): number => window.devicePixelRatio || 1;
 
-// Kept, not queried each time: its `matches` follows the setting.
-const motionQuery = (): MediaQueryList | null =>
-    typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+// One for every scrollbar, made once: its `matches` follows the setting.
+let motion: MediaQueryList | null | undefined;
+const motionQuery = (): MediaQueryList | null => {
+    if (motion === undefined) motion = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    return motion;
+};
 
 // Where a marker is drawn: a card sits beside the marker the user sees.
 const drawnOffset = (m: PlacedMarker): number => (m.shown === null ? m.offset : m.shown);
@@ -291,6 +296,9 @@ export class ScrollbarController implements InputHost, FrameClient {
     private cursorSaved = '';
 
     private resizeObserver: ResizeObserver | null = null;
+    // Connected, and the resize observer has not reported yet: no frame is asked for until it does, and
+    // everything that changed meanwhile is read by that first frame.
+    private awaitingLayout = false;
     private attrObserver: MutationObserver | null = null;
     private selectorObserver: MutationObserver | null = null;
     // The page: its scroll size changes with its content, which the resize observer sees through the
@@ -358,8 +366,13 @@ export class ScrollbarController implements InputHost, FrameClient {
         this.suspendedNow = this.suspended();
 
         // Layout depends on the size of the host, the viewport, the content and the bars themselves.
+        // The first frame waits for the observer's first notice, which comes after the browser has laid
+        // the page out: the layout this frame reads is then there already, where a frame run in the
+        // same rendering update as the connect would force the browser to lay out the whole page
+        // from inside the frame.
         if (typeof ResizeObserver !== 'undefined') {
-            this.resizeObserver = new ResizeObserver(this.onLayoutChange);
+            this.awaitingLayout = true;
+            this.resizeObserver = new ResizeObserver(this.onResizeObserved);
             for (const el of this.observedElements()) this.resizeObserver.observe(el);
         }
         // A change of the text direction moves the bars.
@@ -388,6 +401,7 @@ export class ScrollbarController implements InputHost, FrameClient {
         this.kitWait = null;
         const { target } = this;
         services().scheduler.cancel(this);
+        this.awaitingLayout = false;
         this.frame = null;
         this.lastTime = 0;
         this.glide.stop();
@@ -483,7 +497,10 @@ export class ScrollbarController implements InputHost, FrameClient {
         this.refreshWrites = false;
         this.syncLayers();
         // A change the parts cannot see (an attribute or a class around the element).
-        for (const piece of this.pieces()) if (isPart(piece.el)) piece.el.refresh();
+        for (const piece of this.pieces()) {
+            const el = piece.element;
+            if (el && isPart(el)) el.refresh();
+        }
     }
 
     // `suspended`: the bars fade out as when the indicator ends, take no input, and the card
@@ -723,42 +740,63 @@ export class ScrollbarController implements InputHost, FrameClient {
         // A kit defined later rebuilds the bars with it; meanwhile the default parts stand in.
         if (name && !this.kit) this.kitWait = whenKitDefined(name, () => this.rebuild());
         const classes = partClasses(this.kit);
-        this.bars = { vertical: new Bar('vertical', classes), horizontal: new Bar('horizontal', classes) };
+        // Parts are made when the layout first needs them (Bar.setParts, MarkerSet.materialize, a card's
+        // first opening), and kept: a bar that never shows, a kind the look hides, markers
+        // that are not drawn and cards that never open make none. Each is told of a new element
+        // before it is in the page, to forward its layers.
+        const made = (kind: PartKind, el: HTMLElement): void => this.forwardLayers(kind, el);
+        this.bars = { vertical: new Bar('vertical', classes, made), horizontal: new Bar('horizontal', classes, made) };
+        const marker = (el: HTMLElement): void => made('marker', el);
         this.sets = {
-            vertical: new MarkerSet('vertical', this.bars.vertical.markers, classes.marker),
-            horizontal: new MarkerSet('horizontal', this.bars.horizontal.markers, classes.marker),
+            vertical: new MarkerSet('vertical', this.bars.vertical.markers, classes.marker, marker),
+            horizontal: new MarkerSet('horizontal', this.bars.horizontal.markers, classes.marker, marker),
         };
-        this.corner = new Piece(createPart(classes.corner), ['corner'], 'corner', 'corner');
-        this.cards = new CardLayer(this.cardsEl, classes.card);
+        this.corner = new Piece(() => createPart(classes.corner), ['corner'], 'corner', 'corner', 'vertical', (el) => {
+            made('corner', el);
+            this.frameEl.appendChild(el);
+        });
+        this.cards = new CardLayer(this.cardsEl, classes.card, (el) => made('card', el));
         for (const axis of AXES) this.frameEl.appendChild(this.bars[axis].root.el);
-        this.frameEl.appendChild(this.corner.el);
         this.frameEl.setAttribute('aria-hidden', 'true');
         this.cardsEl.setAttribute('aria-hidden', 'true');
         this.syncHide();
-        this.syncLayers();
     }
 
     // The `thumb-layers`, `button-layers`, ... attributes of the host, forwarded to the parts of
     // that kind as their `layers` attribute (see AxScrollbarPart.layerNames_). An attribute that is
     // not there leaves the part with the layers of its default look.
+    private forwardLayers(kind: PartKind, el: HTMLElement): void {
+        const value = this.attr(`${kind}-layers`);
+        if (value === null) {
+            if (el.hasAttribute('layers')) el.removeAttribute('layers');
+        } else setAttr(el, 'layers', value);
+    }
+
+    // The parts that are made, for a change of the attributes.
     private syncLayers(): void {
         if (!this.bars) return;
-        const forward = (kind: PartKind, els: HTMLElement[]): void => {
-            const value = this.attr(`${kind}-layers`);
-            for (const el of els) {
-                if (value === null) {
-                    if (el.hasAttribute('layers')) el.removeAttribute('layers');
-                } else setAttr(el, 'layers', value);
-            }
+        for (const kind of PART_KINDS) {
+            for (const el of this.madeParts(kind)) this.forwardLayers(kind, el);
+        }
+    }
+
+    // The elements of the parts of a kind that are made now.
+    private madeParts(kind: PartKind): HTMLElement[] {
+        const list: HTMLElement[] = [];
+        const add = (piece: Piece): void => {
+            if (piece.element) list.push(piece.element);
         };
-        const bars = AXES.map((axis) => this.bars[axis]);
-        forward('thumb', bars.map((bar) => bar.thumb.el));
-        forward('button', bars.flatMap((bar) => [bar.buttonStart.el, bar.buttonEnd.el]));
-        forward('track', bars.map((bar) => bar.track.el));
-        forward('track-piece', bars.flatMap((bar) => [bar.pieceStart.el, bar.pieceEnd.el]));
-        forward('corner', [this.corner.el]);
-        forward('marker', AXES.flatMap((axis) => this.sets[axis].list.map((placed) => placed.part.el)));
-        forward('card', this.cards.elements());
+        for (const axis of AXES) {
+            const bar = this.bars[axis];
+            if (kind === 'thumb') add(bar.thumb);
+            else if (kind === 'button') [bar.buttonStart, bar.buttonEnd].forEach(add);
+            else if (kind === 'track') add(bar.track);
+            else if (kind === 'track-piece') [bar.pieceStart, bar.pieceEnd].forEach(add);
+            else if (kind === 'marker') for (const placed of this.sets[axis].list) add(placed.part);
+        }
+        if (kind === 'corner') add(this.corner);
+        if (kind === 'card') list.push(...this.cards.elements());
+        return list;
     }
 
     // `indicator="pinned"`: the mouse indicator never ends, so the bars stay shown (the Always show scrollbars
@@ -802,14 +840,28 @@ export class ScrollbarController implements InputHost, FrameClient {
         this.hideList = new HideList(value !== null ? value : fallback);
     }
 
-    // The parts the look leaves out now go: a hovered marker and an open card of a hidden kind, so
-    // that nothing of them stays behind.
+    // The kinds the look leaves out of a bar now.
+    private barHidden(): BarHidden {
+        return { thumb: this.hidden('thumb'), buttons: this.hidden('button'), track: this.hidden('track'), pieces: this.hidden('track-piece'), markers: this.hidden('marker') };
+    }
+
+    // Whether a bar that is shown now lacks a part the look shows: the layout pass makes it, and what
+    // was read of the bar before that is read again.
+    private partsPending(displayed: Record<Axis, boolean>): boolean {
+        const hidden = this.barHidden();
+        return AXES.some((axis) => displayed[axis] && this.bars[axis].missing(hidden));
+    }
+
+    // The parts the look shows now, on the bars that are shown, are made if they never were, and
+    // the parts it leaves out now go: a hovered marker and an open card of a hidden kind, so that
+    // nothing of them stays behind.
     // Returns whether a part came or went, which changes the room of the track.
-    private applyHide(): boolean {
+    private applyHide(displayed: Record<Axis, boolean>): boolean {
         const markers = this.hidden('marker');
         let changed = false;
+        const hidden = this.barHidden();
         for (const axis of AXES) {
-            if (this.bars[axis].setHidden({ thumb: this.hidden('thumb'), buttons: this.hidden('button'), track: this.hidden('track'), pieces: this.hidden('track-piece'), markers })) changed = true;
+            if (this.bars[axis].setParts(displayed[axis], hidden)) changed = true;
             if (markers) {
                 this.sets[axis].setHover(null);
                 this.sets[axis].setPressed(null);
@@ -823,7 +875,7 @@ export class ScrollbarController implements InputHost, FrameClient {
         return changed;
     }
 
-    // Every piece that is a part element of the bars, the markers and the corner.
+    // Every piece that is a part of the bars, the markers and the corner (made or not).
     private pieces(): Piece[] {
         const list: Piece[] = [this.corner];
         for (const axis of AXES) {
@@ -950,7 +1002,7 @@ export class ScrollbarController implements InputHost, FrameClient {
 
     private request(): void {
         this.stateDirty = true;
-        if (this.connected) services().scheduler.request(this);
+        if (this.connected && !this.awaitingLayout) services().scheduler.request(this);
     }
 
     // Surface's priorities: a press on a bar is first, then a pointer at one, then a scroll that is
@@ -989,10 +1041,14 @@ export class ScrollbarController implements InputHost, FrameClient {
         if (!this.layoutDirty && this.sizeChanged()) this.layoutDirty = true;
 
         const layout = this.layoutDirty ? this.readLayout() : null;
+        // A bar that is shown for the first time lacks its parts, which this frame makes: its track is
+        // read without the room of the buttons, so nothing is drawn from it (a thumb or a marker drawn
+        // there would slide to its place in the next frame). The next frame reads it again.
+        const stale = layout !== null && this.partsPending(layout.displayed);
         const target = this.target;
         // The markers are measured for a new list, for a layout pass and when asked; hidden ones are
         // not measured: the layout pass that shows them again measures them.
-        const markersWanted = !this.hidden('marker');
+        const markersWanted = !this.hidden('marker') && !stale;
         let list: ScrollMarker[] | null = null;
         if (this.listDirty) list = this.readMarkerList();
         let positions: Map<ScrollMarker, number> | null = null;
@@ -1011,6 +1067,7 @@ export class ScrollbarController implements InputHost, FrameClient {
             list,
             positions,
             layout,
+            stale,
             card: this.readCard(),
             exact: { vertical: null, horizontal: null },
             drawn: { vertical: null, horizontal: null },
@@ -1027,7 +1084,7 @@ export class ScrollbarController implements InputHost, FrameClient {
             for (const axis of AXES) {
                 const state = this.states[axis];
                 state.displayed = layout.displayed[axis];
-                state.metrics = layout.metrics[axis];
+                state.metrics = frame.stale ? null : layout.metrics[axis];
                 state.origin = layout.origin[axis];
             }
         }
@@ -1086,7 +1143,11 @@ export class ScrollbarController implements InputHost, FrameClient {
             if (!drawn || !exact || !state.metrics) continue;
             this.bars[axis].render(drawn, frame.rtl, frame.snapping);
             const set = this.sets[axis];
-            if (placing) set.place(exact, state.metrics.client, this.alignment(), this.tokens.markerSpacing);
+            if (placing) {
+                set.place(exact, state.metrics.client, this.alignment(), this.tokens.markerSpacing);
+                // The marks of a bar that is drawn get their elements, the first time they are placed.
+                set.materialize();
+            }
             if (placing || (state.markersMoving && markers)) {
                 state.markersMoving = set.draw(frame.dt, frame.tau, exact.track, frame.rtl, frame.snapping ? state.origin : null);
                 moving = moving || state.markersMoving;
@@ -1261,7 +1322,7 @@ export class ScrollbarController implements InputHost, FrameClient {
             this.bars[axis].setDisplayed(read.displayed[axis]);
             state.laidOut = read.displayed[axis];
         }
-        if (this.applyHide()) changed = true;
+        if (this.applyHide(read.displayed)) changed = true;
         this.frameEl.classList.toggle('rtl', rtl);
 
         const vertical = read.displayed.vertical;
@@ -1275,9 +1336,13 @@ export class ScrollbarController implements InputHost, FrameClient {
         if (writeStyle(hBar, rtl ? 'left' : 'right', inset(vT))) changed = true;
         if (writeStyle(hBar, rtl ? 'right' : 'left', '')) changed = true;
 
-        writeStyle(this.corner.el, 'display', both && !this.hidden('corner') ? '' : 'none');
-        writeStyle(this.corner.el, 'width', `${vT}px`);
-        writeStyle(this.corner.el, 'height', `${hT}px`);
+        // The corner is made when the bars meet, and the look shows it.
+        const corner = both && !this.hidden('corner') ? this.corner.ensure() : this.corner.element;
+        if (corner) {
+            writeStyle(corner, 'display', both && !this.hidden('corner') ? '' : 'none');
+            writeStyle(corner, 'width', `${vT}px`);
+            writeStyle(corner, 'height', `${hT}px`);
+        }
 
         writeStyle(this.host, '--ax-scrollbar-vertical-size', vertical ? `${vT}px` : '0px');
         writeStyle(this.host, '--ax-scrollbar-horizontal-size', horizontal ? `${hT}px` : '0px');
@@ -1326,7 +1391,6 @@ export class ScrollbarController implements InputHost, FrameClient {
     // Builds the parts of a new list (write).
     private applyMarkerList(list: ScrollMarker[]): void {
         for (const axis of AXES) this.sets[axis].set(list);
-        this.syncLayers();
         // A card whose marker is gone closes, and so does a hover on it.
         const shown = this.card;
         if (shown && !list.some((m) => m.id === shown.id)) {
@@ -1487,6 +1551,11 @@ export class ScrollbarController implements InputHost, FrameClient {
         this.request();
     };
 
+    private readonly onResizeObserved = (): void => {
+        this.awaitingLayout = false;
+        this.onLayoutChange();
+    };
+
     // Any change of the content may change what the selector matches: one query on the next frame,
     // however many changes came before it. Our own attributes on the host (the states) are not the
     // content's.
@@ -1534,8 +1603,8 @@ export class ScrollbarController implements InputHost, FrameClient {
     // Whether a point is on the corner square, when it is shown. A native corner is no one's: it
     // takes the press and does nothing with it.
     private onCorner(x: number, y: number): boolean {
-        const el = this.corner.el;
-        if (el.style.display === 'none') return false;
+        const el = this.corner.element;
+        if (!el || el.style.display === 'none') return false;
         const r = el.getBoundingClientRect();
         return r.width > 0 && r.height > 0 && x >= r.left && x < r.right && y >= r.top && y < r.bottom;
     }

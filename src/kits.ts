@@ -97,9 +97,18 @@ export function tagOf(cls: PartClass, preferred: string): string {
     return preferred;
 }
 
+// The tag of each class this copy made a part of: a page makes hundreds, and the lookup of the shared registry
+// and the tag's name are the same each time.
+const madeTags = new WeakMap<PartClass, string>();
+
 // A new element of a part class.
 export function createPart(cls: PartClass): HTMLElement {
-    return document.createElement(tagOf(cls, `ax-scrollbar-${cls.kind}`));
+    let tag = madeTags.get(cls);
+    if (!tag) {
+        tag = tagOf(cls, `ax-scrollbar-${cls.kind}`);
+        madeTags.set(cls, tag);
+    }
+    return document.createElement(tag);
 }
 
 // The default part classes as <ax-scrollbar-thumb> and so on.

@@ -112,6 +112,25 @@ type Check = { name: string; run: (t: Ctx) => Promise<void> };
 
 const checks: Check[] = [
     {
+        name: 'properties are registered with the browser by register() and defineLunaKit(), before any part is made: a part first made later invalidates no page',
+        run: async (t) => {
+            // A registered property reads as its initial value on any element; one that is not, as nothing.
+            const registered = (names: string[]) =>
+                t.page.evaluate((list) => list.filter((name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() !== ''), names);
+            // The host tokens, the look inputs, the CSS-only ones, the fill and the glyph layers, the elevation of a card.
+            const package_ = ['--ax-scrollbar-thickness', '--ax-scrollbar-idle-delay', '--ax-scrollbar-part-size', '--ax-scrollbar-part-color', '--ax-scrollbar-card-slide-distance', '--ax-scrollbar-part-fill-clip', '--ax-scrollbar-glyph-width', '--ax-scrollbar-glyph-shape', '--elevation-depth'];
+            const got = await registered(package_);
+            expect(got.length === package_.length, `not registered by register(): ${package_.filter((n) => !got.includes(n)).join(' ')}`);
+            // The Luna tokens: with the kit, before the first Luna part.
+            const luna = ['--luna-light', '--luna-accent-light', '--luna-accent', '--luna-accent-deep', '--luna-glyph'];
+            expect(!(await t.call<boolean>('hasLuna')), 'precondition: the Luna kit is not defined yet');
+            expect((await registered(luna)).length === 0, 'the Luna tokens are registered before the kit is defined');
+            await t.call('defineLuna');
+            const lunaGot = await registered(luna);
+            expect(lunaGot.length === luna.length, `not registered by defineLunaKit(): ${luna.filter((n) => !lunaGot.includes(n)).join(' ')}`);
+        },
+    },
+    {
         name: 'thumb length and offset',
         run: async (t) => {
             await t.reset();
@@ -1326,14 +1345,15 @@ const checks: Check[] = [
                 return {
                     seen: thumb.seen,
                     state: thumb.partState,
-                    // Not the change detector that typed-om puts in the root to watch the host tokens.
-                    styleElements: Array.from(root.querySelectorAll('style')).filter((style) => !(style.textContent || '').includes('ax-typed-om')).length,
+                    // The structure style is one sheet that every scrollbar root adopts; no other style
+                    // source (not the change detector that typed-om puts in the root to watch the host tokens).
+                    styleElements: root.adoptedStyleSheets.length + Array.from(root.querySelectorAll('style')).filter((style) => !(style.textContent || '').includes('ax-typed-om')).length,
                     offset: getComputedStyle(thumb).outlineOffset,
                 };
             });
             expect(info.state.hover && info.state.axis === 'vertical', `partState ${JSON.stringify(info.state)}`);
             expect(info.seen[info.seen.length - 1] === 'hover', `stateChanged saw ${info.seen.join(' ')}`);
-            expect(info.styleElements === 1, `the scrollbar's shadow root has ${info.styleElements} style elements, want its structure alone`);
+            expect(info.styleElements === 1, `the scrollbar's shadow root has ${info.styleElements} style sheets, want its structure alone`);
             expect(info.offset === '3px', `the part's own shadow style does not apply (outline-offset ${info.offset})`);
             await t.park();
             // Without the attribute the default parts come back.
@@ -1367,7 +1387,7 @@ const checks: Check[] = [
                     const thumb = root.querySelector('[part~="thumb-vertical"]') as HTMLElement;
                     const sheets = (el: HTMLElement) => (el.shadowRoot!.adoptedStyleSheets || []).map((sheet) => Array.from(sheet.cssRules).map((rule) => rule.cssText).join('\n')).join('\n');
                     return {
-                        structure: Array.from(root.querySelectorAll('style')).map((style) => style.textContent).join('\n'),
+                        structure: sheets(root.host as HTMLElement) + Array.from(root.querySelectorAll('style')).map((style) => style.textContent).join('\n'),
                         thumbSheets: sheets(thumb),
                         svgs: thumb.shadowRoot!.querySelectorAll('svg').length,
                         color: getComputedStyle(thumb).getPropertyValue('--ax-scrollbar-part-color'),
@@ -1377,6 +1397,7 @@ const checks: Check[] = [
             };
             try {
                 const base = await info(null);
+                expect(base.structure.includes('.viewport') && base.structure.includes('.bar'), 'the structure sheet of the scrollbar root was not found');
                 expect(!/part-color|shown-color|--ax-fill-color/.test(base.structure), 'the scrollbar shadow root sets a look input');
                 expect(base.thumbSheets.includes('--ax-scrollbar-part-color: #cdcdcd'), 'the default thumb does not carry its look in its own shadow root');
                 expect(base.svgs === 1, `the default thumb draws ${base.svgs} fill layers, want 1`);
@@ -2697,9 +2718,10 @@ const checks: Check[] = [
                 defineScrollbarKit('hidekit-plain', {});
                 defineScrollbarKit('hidekit-own', { hide: 'track' });
             });
+            // A part is shown when it is made and displayed; one the look leaves out is not made at all.
             const shown = async () => ({
-                buttons: (await t.call('display', 'kit', 'button-end-vertical')) !== 'none',
-                track: (await t.call('display', 'kit', 'track-vertical')) !== 'none',
+                buttons: (await t.call<boolean>('made', 'kit', 'button-end-vertical')) && (await t.call('display', 'kit', 'button-end-vertical')) !== 'none',
+                track: (await t.call<boolean>('made', 'kit', 'track-vertical')) && (await t.call('display', 'kit', 'track-vertical')) !== 'none',
             });
             try {
                 await t.call('setAttr', 'kit', 'kit', 'hidekit-plain');
@@ -2710,14 +2732,150 @@ const checks: Check[] = [
                 await t.settle();
                 s = await shown();
                 expect(s.buttons && !s.track, `hide: "track": buttons shown ${s.buttons}, track shown ${s.track}`);
+                // The kit was rebuilt, and the track that its look leaves out was never made.
+                expect(!(await t.call<boolean>('made', 'kit', 'track-vertical')), 'hide: "track": the track element is made though the look leaves it out');
+                expect(!(await t.call<boolean>('made', 'kit', 'track-piece-start-vertical')), 'hide: "track": a track piece is made though the track is left out');
                 await t.call('setAttr', 'kit', 'hide', '');
                 await t.settle();
                 s = await shown();
                 expect(s.buttons && s.track, `the attribute hide="" overrides the kit: buttons shown ${s.buttons}, track shown ${s.track}`);
+                // It is made the first time it is wanted, and kept when it is left out again.
+                await t.call('setAttr', 'kit', 'hide', 'track');
+                await t.settle();
+                expect(await t.call<boolean>('made', 'kit', 'track-vertical'), 'the track is gone when it is left out again, want it kept (display none)');
+                expect((await t.call('display', 'kit', 'track-vertical')) === 'none', 'the track that is left out is displayed');
             } finally {
                 await t.call('setAttr', 'kit', 'hide', null);
                 await t.call('setAttr', 'kit', 'kit', null);
                 await t.settle();
+            }
+        },
+    },
+    {
+        name: 'parts on demand: a part is made the first time the layout needs it and kept; a bar that never shows, a kind the look hides, markers that are hidden and cards that never open make none',
+        run: async (t) => {
+            const html = '<div id="c" style="height: 3000px"><h2 id="A" style="margin: 0">A</h2><h2 id="B" style="margin: 900px 0 0">B</h2></div>';
+            const attrs = { 'marker-selector': 'h2', indicator: 'pinned', 'thumb-layers': 'scrollbar-fill test-a' };
+            await t.page.evaluate(() => {
+                const { defineScrollbarKit, AxScrollbarThumb } = window.axScrollbar;
+                if (!window.axScrollbar.hasScrollbarKit('b18')) defineScrollbarKit('b18', { thumb: class extends AxScrollbarThumb {} });
+            });
+            await t.call('plainMake', 'od', '', attrs, html);
+            const made = (name: string) => t.call<boolean>('made', 'od', name);
+            const count = () => t.call<Record<string, number>>('madeCount', 'od');
+            // The counts as sorted text: the order of the keys is not the point.
+            const text = (counts: Record<string, number>) => JSON.stringify(Object.entries(counts).sort());
+            try {
+                await t.frames(6);
+                // Content that scrolls on one axis: that bar's parts, its markers, and nothing else.
+                const first = await count();
+                expect(text(first) === text({ thumb: 1, button: 2, track: 1, 'track-piece': 2, marker: 2 }), `a view that scrolls vertically made ${JSON.stringify(first)}, want the vertical bar and its two markers`);
+                for (const name of ['thumb-horizontal', 'button-start-horizontal', 'button-end-horizontal', 'track-horizontal', 'track-piece-start-horizontal', 'track-piece-end-horizontal', 'corner', 'card']) {
+                    expect(!(await made(name)), `${name} is made, though no bar of that part shows`);
+                }
+                expect(await made('thumb-vertical'), 'the thumb of the bar that shows is not made');
+
+                // Content that grows wide: the horizontal bar shows for the first time, and its parts and the corner are made then,
+                // with the layers of the attribute set before they existed.
+                await t.call('plainStyle', 'od', '#c { width: 3000px; }');
+                await t.frames(8);
+                const both = await count();
+                expect(text(both) === text({ thumb: 2, button: 4, track: 2, 'track-piece': 4, corner: 1, marker: 2 }), `a view that scrolls both ways made ${JSON.stringify(both)}`);
+                expect((await t.call<string | null>('layersAttr', 'od', 'thumb-horizontal')) === 'scrollbar-fill test-a', 'the thumb made later has no layers from the attribute');
+                // The part is drawn, not only made: it is placed along its track.
+                const bar = await t.box('od', 'scrollbar-horizontal');
+                const thumb = await t.box('od', 'thumb-horizontal');
+                expect(thumb.width > 0 && thumb.left >= bar.left && thumb.right <= bar.right, `the thumb made later is at ${JSON.stringify(thumb)} in the bar ${JSON.stringify(bar)}`);
+
+                // The bar goes away: its parts stay (not displayed), and are not made again when it comes back.
+                const before = await t.call<string>('identity', 'od', 'thumb-horizontal');
+                await t.call('plainStyle', 'od', '#c { width: 10px; }');
+                await t.frames(8);
+                expect(await made('thumb-horizontal'), 'the thumb of a bar that went away is not kept');
+                await t.call('plainStyle', 'od', '#c { width: 3000px; }');
+                await t.frames(8);
+                expect((await t.call<string>('identity', 'od', 'thumb-horizontal')) === before, 'the thumb is made again when its bar comes back');
+                expect(text(await count()) === text(both), 'parts were made again');
+
+                // A kind the look hides is not made; it is made the first time the look shows it, and kept.
+                await t.call('setAttr', 'od', 'hide', 'marker button');
+                await t.frames(6);
+                const kept = await count();
+                expect(kept.marker === 2 && kept.button === 4, `parts that were made are kept when the look hides them: ${JSON.stringify(kept)}`);
+                expect((await t.call('display', 'od', 'button-end-vertical')) === 'none', 'a hidden button is displayed');
+                await t.call('plainRemove', 'od');
+                await t.call('plainMake', 'od', '', { ...attrs, hide: 'marker button card' }, html);
+                await t.frames(8);
+                const bare = await count();
+                expect(text(bare) === text({ thumb: 1, track: 1, 'track-piece': 2 }), `a view that hides markers and buttons made ${JSON.stringify(bare)}`);
+                await t.call('setAttr', 'od', 'hide', 'card');
+                await t.frames(8);
+                const shown = await count();
+                expect(text(shown) === text({ thumb: 1, button: 2, track: 1, 'track-piece': 2, marker: 2 }), `the buttons and the markers are not made when the look first shows them: ${JSON.stringify(shown)}`);
+
+                // A card is made when the first one opens, and kept.
+                await t.call('setAttr', 'od', 'hide', null);
+                await t.frames(4);
+                expect(!(await made('card')), 'a card is made before a marker was hovered');
+                const mc = centre(await t.box('od', 'marker:A'));
+                await t.page.mouse.move(mc.x, mc.y);
+                await t.sleep(700);
+                expect((await t.call('openCard', 'od')) === 'A', `the card shows "${await t.call('openCard', 'od')}"`);
+                expect((await count()).card === 1, `the first card opened made ${(await count()).card} card elements, want one`);
+                await t.park();
+                await t.sleep(900);
+                expect(await made('card'), 'the card is not kept after it closed');
+
+                // The classes of a kit are used the same way: the part made later is the kit's.
+                await t.call('plainRemove', 'od');
+                await t.call('plainMake', 'od', '', { ...attrs, kit: 'b18' }, html);
+                await t.frames(6);
+                expect((await t.call('tagOf', 'od', 'thumb-vertical')) === 'AX-SCROLLBAR-B18-THUMB', `the thumb is ${await t.call('tagOf', 'od', 'thumb-vertical')}`);
+                expect(!(await made('thumb-horizontal')), 'a kit thumb is made for a bar that does not show');
+                await t.call('plainStyle', 'od', '#c { width: 3000px; }');
+                await t.frames(8);
+                expect((await t.call('tagOf', 'od', 'thumb-horizontal')) === 'AX-SCROLLBAR-B18-THUMB', `the thumb made later is ${await t.call('tagOf', 'od', 'thumb-horizontal')}`);
+                expect((await t.call('tagOf', 'od', 'button-end-horizontal')) === 'AX-SCROLLBAR-BUTTON', 'a kind the kit leaves out is not the default class');
+            } finally {
+                await t.call('plainRemove', 'od');
+                await t.park();
+            }
+        },
+    },
+    {
+        name: 'mount forces no style or layout: the first frame waits for the resize observer and reads a page that is laid out already',
+        run: async (t) => {
+            const html = '<div id="c" style="height: 3000px; width: 3000px"><h2 id="A" style="margin: 0">A</h2><h2 id="B" style="margin: 900px 0 0">B</h2></div>';
+            const cdp = await t.page.context().newCDPSession(t.page);
+            const events: { name: string; args?: { beginData?: { stackTrace?: { functionName: string }[] } } }[] = [];
+            cdp.on('Tracing.dataCollected', (e: { value: typeof events }) => events.push(...e.value));
+            const done = new Promise<void>((resolve) => cdp.once('Tracing.tracingComplete', () => resolve()));
+            // The page's own scrollbar follows every change of the document, in the frame of the change (it was
+            // connected long ago, and reads what the change made dirty): it is out of the page while the view mounts.
+            await t.call('detachPage');
+            await cdp.send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'disabled-by-default-devtools.timeline.stack'] } });
+            try {
+                // Both bars, markers and a corner: the whole of what a view makes.
+                await t.call('plainMake', 'fl', '', { 'marker-selector': 'h2', indicator: 'pinned' }, html);
+                await t.frames(8);
+            } finally {
+                await cdp.send('Tracing.end');
+                await done;
+                await cdp.detach();
+                await t.call('attachPage');
+            }
+            // The package's reads of layout: a style or layout run that one of them forced shows it in its stack.
+            const reads = new Set(['readLayout', 'client', 'size', 'rtl', 'refreshDirection', 'viewport', 'contentOffset', 'position', 'trackLength', 'thickness', 'minThumb', 'measure', 'readCard', 'barRect', 'along']);
+            const forced = events.filter((e) => (e.name === 'Layout' || e.name === 'UpdateLayoutTree') && (e.args?.beginData?.stackTrace || []).some((f) => reads.has(f.functionName)));
+            try {
+                expect(forced.length === 0, `${forced.length} style or layout runs were forced by the scrollbar's reads while it mounted: ${forced.map((e) => (e.args?.beginData?.stackTrace || []).slice(0, 4).map((f) => f.functionName).join(' < ')).join(' | ')}`);
+                // And it did its work: the bars are laid out and drawn.
+                expect(JSON.stringify(Object.entries(await t.call<Record<string, number>>('madeCount', 'fl')).sort()) === JSON.stringify(Object.entries({ thumb: 2, button: 4, track: 2, 'track-piece': 4, corner: 1, marker: 2 }).sort()), 'the view did not make its parts');
+                const thumb = await t.box('fl', 'thumb-vertical');
+                expect(thumb.height > 0, 'the thumb is not drawn');
+            } finally {
+                await t.call('plainRemove', 'fl');
+                await t.park();
             }
         },
     },
@@ -2817,7 +2975,9 @@ const checks: Check[] = [
                 near(bar.width, 14, 0.01, 'bar thickness');
                 near((await t.box('mn', 'area-vertical')).left - bar.left, 2, 0.01, 'bar padding');
                 near((await t.box('mn', 'thumb-vertical')).height, 32, 0.01, 'thumb minimum length');
-                expect((await t.call('display', 'mn', 'button-end-vertical')) === 'none', 'hide="button": the buttons are displayed');
+                // A kind the look leaves out is never made, so it is neither displayed nor in the page.
+                expect(!(await t.call<boolean>('made', 'mn', 'button-end-vertical')) && !(await t.call<boolean>('made', 'mn', 'button-start-vertical')), 'hide="button": the buttons are made');
+                expect(await t.call<boolean>('made', 'mn', 'thumb-vertical'), 'the thumb of the bar that shows is not made');
                 near((await t.box('mn', 'thumb-vertical')).width, 4, 0.01, 'thumb width at rest');
                 colour(await look('thumb-vertical', '--ax-scrollbar-shown-color'), [0, 0, 0, 0.4], 'thumb at rest');
                 colour(await look('thumb-vertical', '--ax-scrollbar-shown-border-color'), [0, 0, 0, 0], 'thumb border');
@@ -3335,6 +3495,12 @@ const checks: Check[] = [
                 expect((await layers('corner')) === 'scrollbar-fill test-a', `corner layers: ${await layers('corner')}`);
                 expect((await layers('track-piece-end-vertical')) === 'scrollbar-fill test-a', 'track piece layers set');
                 expect((await layers('button-end-vertical')) === 'scrollbar-fill test-a', 'button layers set (the arrow layer is replaced, as Surface would)');
+                // A card is made when the first one opens, with the layers of its attribute.
+                expect(!(await t.call<boolean>('made', 'ly', 'card')), 'a card is made before any marker was hovered');
+                const mc = centre(await t.box('ly', 'marker:A'));
+                await t.page.mouse.move(mc.x, mc.y);
+                await t.sleep(700);
+                expect((await t.call('openCard', 'ly')) === 'A', `the card shows "${await t.call('openCard', 'ly')}"`);
                 const card = await t.call<string | null>('partAttr', 'ly', 'card', 'layers');
                 expect(card === 'scrollbar-fill test-a', `card layers attribute: ${card}`);
             } finally {

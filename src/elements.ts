@@ -88,9 +88,29 @@ abstract class ScrollbarElement extends ElementBase {
     }
 }
 
-// The style element of the shadow root: structure and placement.
-function styles(extra = ''): string {
-    return `<style>${SHADOW_STYLE}${extra}</style>`;
+// The shadow root of an element: its structure and placement style, and its markup. The style is one
+// sheet that every root of the kind adopts, and the markup is cloned from one template, so a page of
+// scroll views parses neither again for each (a browser without constructable style sheets gets a
+// style element in the template).
+const adoptable = typeof CSSStyleSheet === 'function' && typeof Document !== 'undefined' && 'adoptedStyleSheets' in Document.prototype && 'replaceSync' in CSSStyleSheet.prototype;
+const shadowSheets: { [kind: string]: CSSStyleSheet } = {};
+const shadowTemplates: { [kind: string]: HTMLTemplateElement } = {};
+
+function fillShadow(root: ShadowRoot, kind: string, css: string, markup: string): void {
+    let template = shadowTemplates[kind];
+    if (!template) {
+        template = shadowTemplates[kind] = document.createElement('template');
+        template.innerHTML = adoptable ? markup : `<style>${css}</style>${markup}`;
+    }
+    if (adoptable) {
+        let sheet = shadowSheets[kind];
+        if (!sheet) {
+            sheet = shadowSheets[kind] = new CSSStyleSheet();
+            sheet.replaceSync(css);
+        }
+        root.adoptedStyleSheets = [sheet];
+    }
+    root.appendChild(template.content.cloneNode(true));
 }
 
 // A scroll container with scrollbars on both axes. Scrolling is the element's own: the scrollbars
@@ -104,7 +124,7 @@ export class AxScrollView extends ScrollbarElement {
         super();
         // delegatesFocus: focusing the host focuses the viewport while it takes focus, so the keys scroll it.
         const root = this.attachShadow({ mode: 'open', delegatesFocus: true });
-        root.innerHTML = `${styles()}<div class="viewport" part="viewport"><div class="content" part="content"><slot></slot></div></div><div class="frame"></div><div class="cards"></div>`;
+        fillShadow(root, 'view', SHADOW_STYLE, '<div class="viewport" part="viewport"><div class="content" part="content"><slot></slot></div></div><div class="frame"></div><div class="cards"></div>');
         this.viewport = root.querySelector('.viewport') as HTMLElement;
         this.controller = new ScrollbarController({
             host: this,
@@ -184,7 +204,7 @@ export class AxScrollbar extends ScrollbarElement {
     constructor() {
         super();
         const root = this.attachShadow({ mode: 'open' });
-        root.innerHTML = `${styles(DOCUMENT_HOST)}<div class="frame document"></div><div class="cards"></div>`;
+        fillShadow(root, 'page', SHADOW_STYLE + DOCUMENT_HOST, '<div class="frame document"></div><div class="cards"></div>');
         this.controller = new ScrollbarController({
             host: this,
             root,

@@ -26,7 +26,9 @@ export interface ScrollTarget {
     // While on, scroll-behavior stays auto (important) for the whole of a drag, so no author rule
     // can smooth one of its writes, also between them.
     holdInstant(on: boolean): void;
-    contentOffset(el: Element, axis: Axis): number;
+    // `viewport` and `position` are what viewport() and position(axis) give now, for a caller that measures many
+    // elements and has read them once.
+    contentOffset(el: Element, axis: Axis, viewport?: ViewportBox, position?: number): number;
     viewport(): ViewportBox;
 }
 
@@ -107,12 +109,11 @@ class Target implements ScrollTarget {
         };
     }
 
-    contentOffset(el: Element, axis: Axis): number {
+    contentOffset(el: Element, axis: Axis, v: ViewportBox = this.viewport(), position: number = this.position(axis)): number {
         const r = el.getBoundingClientRect();
-        const v = this.viewport();
-        if (axis === 'vertical') return r.top - v.top + this.position('vertical');
-        if (!this.rtl()) return r.left - v.left + this.position('horizontal');
-        return v.left + v.width - r.right + this.position('horizontal');
+        if (axis === 'vertical') return r.top - v.top + position;
+        if (!this.rtl()) return r.left - v.left + position;
+        return v.left + v.width - r.right + position;
     }
 
     viewport(): ViewportBox {

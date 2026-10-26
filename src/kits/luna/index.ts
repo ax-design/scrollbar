@@ -16,6 +16,7 @@ import {
     defineScrollbarKit,
 } from '@ax-design/scrollbar';
 import type { Quality, Values } from '@ax-design/surface';
+import { registerProperties } from '@ax-design/typed-om';
 import button from './button.js';
 import card from './card.js';
 import corner from './corner.js';
@@ -214,6 +215,10 @@ class LunaCard extends AxScrollbarCard {
 
 // Defines the kit; once per page.
 export function defineLunaKit(): void {
+    // The tokens the parts read are registered now, with the kit: registered when the first part builds its
+    // schema, they would invalidate the style of the whole page after it was laid out (a document-wide
+    // recalculation for five properties), where now it is the style of what is about to be added.
+    registerProperties(SCHEMA);
     defineScrollbarKit('luna', {
         thumb: LunaThumb,
         button: LunaButton,

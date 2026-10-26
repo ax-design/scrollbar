@@ -24,8 +24,8 @@ const STATE_TOKENS = [
 ];
 
 interface Card {
-    part: Piece;
-    el: AxScrollbarCard;
+    // The element is made the first time the card opens (a bar whose markers are never hovered makes none).
+    part: Piece<AxScrollbarCard>;
     marker: ScrollMarker | null;
     timer: number | null;
 }
@@ -37,15 +37,18 @@ export class CardLayer {
     // Checked here rather than at module load, so the module can be imported without a DOM.
     private readonly popover: boolean;
 
-    // `cls` is the card class, AxScrollbarCard or a kit's subclass of it.
-    constructor(container: HTMLElement, cls: PartClass) {
+    // `cls` is the card class, AxScrollbarCard or a kit's subclass of it. `made` is told of each card
+    // element as it is made (the host forwards `card-layers` to it).
+    constructor(container: HTMLElement, cls: PartClass, made: (el: HTMLElement) => void = () => {}) {
         this.popover = 'popover' in HTMLElement.prototype;
-        this.cards = [this.createCard(container, cls), this.createCard(container, cls)];
+        this.cards = [this.createCard(container, cls, made), this.createCard(container, cls, made)];
     }
 
-    // The two card elements, for the host to forward `card-layers` to.
+    // The card elements made so far.
     elements(): HTMLElement[] {
-        return this.cards.map((card) => card.el);
+        const list: HTMLElement[] = [];
+        for (const card of this.cards) if (card.part.element) list.push(card.part.element);
+        return list;
     }
 
     get shownId(): string | null {
@@ -90,18 +93,19 @@ export class CardLayer {
         for (const card of this.cards) {
             if (card.timer !== null) window.clearTimeout(card.timer);
             card.timer = null;
-            card.part.el.remove();
+            if (card.part.element) card.part.element.remove();
         }
         this.active = null;
     }
 
-    private createCard(container: HTMLElement, cls: PartClass): Card {
-        const el = createPart(cls) as AxScrollbarCard;
-        const part = new Piece(el, ['card'], null, 'card');
-        if (this.popover) el.setAttribute('popover', 'manual');
-        else el.style.zIndex = Z_TOP;
-        container.appendChild(el);
-        return { part, el, marker: null, timer: null };
+    private createCard(container: HTMLElement, cls: PartClass, made: (el: HTMLElement) => void): Card {
+        const part = new Piece<AxScrollbarCard>(() => createPart(cls) as AxScrollbarCard, ['card'], null, 'card', 'vertical', (el) => {
+            if (this.popover) el.setAttribute('popover', 'manual');
+            else el.style.zIndex = Z_TOP;
+            made(el);
+            container.appendChild(el);
+        });
+        return { part, marker: null, timer: null };
     }
 
     private open(
@@ -121,9 +125,8 @@ export class CardLayer {
             card.timer = null;
         }
         card.marker = marker;
-        card.el.present(group);
-
         const part = card.part;
+        part.ensure().present(group);
         part.set({ axis });
         part.toggle('card-vertical', axis === 'vertical');
         part.toggle('card-horizontal', axis === 'horizontal');
@@ -138,7 +141,7 @@ export class CardLayer {
 
         // Balanced text is as wide as its longest line, not as wide as its block. The width is a
         // custom property the structure style puts on the content, so ::part(card-content) can override it.
-        const content = card.el.content;
+        const content = part.el.content;
         const range = document.createRange();
         range.selectNodeContents(content);
         content.style.setProperty('--ax-scrollbar-fit-width', Math.ceil(range.getBoundingClientRect().width) + 'px');

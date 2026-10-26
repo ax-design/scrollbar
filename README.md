@@ -171,6 +171,8 @@ For other content, extend `AxScrollbarCard` in a kit and override `render(marker
 
 `hide` is a plain space-separated list of the parts a look never shows: `thumb`, `button`, `track` (with its pieces), `track-piece`, `corner`, `marker`, `card`. A hidden part takes no room and no input: hidden markers are not measured and hidden cards do not open. Unknown names are ignored.
 
+A part is made the first time the layout needs it, and kept after that. A part that is never shown is never made: an axis that never scrolls makes none of its bar's parts (nor, without the other axis, the corner), a kind in `hide` makes none, a scroll view without markers makes no marker and one whose markers are never hovered makes no card. A bar that shows for the first time (the content grew, `hide` changed) makes its parts in that frame and draws them in the next, and a part that goes away stays (not displayed). A kit's classes are used the same way: `createElement` runs for the class when the part is first needed, so a kit's part exists only while a bar shows it.
+
 ```html
 <ax-scroll-view hide="button">...</ax-scroll-view>
 <ax-scroll-view hide="button track corner">...</ax-scroll-view>

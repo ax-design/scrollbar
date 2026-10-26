@@ -81,8 +81,9 @@ interface Press {
     intent: 'undetermined' | 'along' | 'across';
 }
 
-// Whether a point lies inside an element's box.
-const under = (el: HTMLElement, x: number, y: number): boolean => {
+// Whether a point lies inside an element's box; a part that was never made has none.
+const under = (el: HTMLElement | null, x: number, y: number): boolean => {
+    if (!el) return false;
     const r = el.getBoundingClientRect();
     return x >= r.left && x < r.right && y >= r.top && y < r.bottom;
 };
@@ -378,7 +379,7 @@ export class BarInput {
     // The button repeats only while the pointer is over it. Leaving pauses, coming back waits
     // the repeat delay again, as a new press would.
     private trackButton(p: Press): void {
-        const el = p.dir < 0 ? this.bar.buttonStart.el : this.bar.buttonEnd.el;
+        const el = p.dir < 0 ? this.bar.buttonStart.element : this.bar.buttonEnd.element;
         const over = under(el, p.x, p.y);
         if (over === p.over) return;
         p.over = over;
@@ -426,8 +427,8 @@ export class BarInput {
         const px = vertical ? (r.left + r.right) / 2 : x;
         const py = vertical ? y : (r.top + r.bottom) / 2;
         const { buttonStart, buttonEnd, area } = this.bar;
-        if (under(buttonStart.el, px, py)) return 'button-start';
-        if (under(buttonEnd.el, px, py)) return 'button-end';
+        if (under(buttonStart.element, px, py)) return 'button-start';
+        if (under(buttonEnd.element, px, py)) return 'button-end';
         if (!under(area, px, py)) return null;
         // Hidden buttons are not displayed, so the tests above miss them; a hidden thumb or track
         // is still under the area.

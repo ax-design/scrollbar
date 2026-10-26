@@ -128,6 +128,14 @@ function registerLook(): void {
     registerProperties(LOOK_PROPERTIES.concat(CSS_PROPERTIES));
 }
 
+// Registers every property of the package with the browser: the host tokens, the look inputs of the parts
+// and the ones only the CSS uses. register() does it, so that none is registered later, when a kind of part is
+// first made: registering a property invalidates the style of the whole page, and a page that has grown by
+// then pays for it in full.
+export function registerAllProperties(): void {
+    schema();
+}
+
 function schema(): StyleSchema {
     if (!hostSchema) {
         hostSchema = new StyleSchema(HOST_PROPERTIES);

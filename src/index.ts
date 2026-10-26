@@ -4,6 +4,7 @@ import { AxScrollbar, AxScrollView } from './elements.js';
 import { defineDefaultParts } from './kits.js';
 import { createScrollbarFillLayer } from './parts/fill.js';
 import { createGlyphLayer } from './parts/glyph.js';
+import { registerAllProperties } from './tokens.js';
 
 export { AxScrollView, AxScrollbar } from './elements.js';
 export { defineScrollbarKit, hasScrollbarKit } from './kits.js';
@@ -29,6 +30,8 @@ export type { Axis, Placement, ScrollMarker, ScrollMarkerInput } from './types.j
 export function register(): void {
     registerSurface();
     registerElevationLayer();
+    // The properties of the package, once and now (the layers' are registered with the layers): see registerAllProperties.
+    registerAllProperties();
     // Another copy of this package may have registered it already.
     if (!hasLayer('scrollbar-fill')) registerLayer('scrollbar-fill', createScrollbarFillLayer);
     if (!hasLayer('scrollbar-glyph')) registerLayer('scrollbar-glyph', createGlyphLayer);

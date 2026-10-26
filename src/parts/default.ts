@@ -38,7 +38,7 @@ function defaultLook(state: Readonly<PartState>, values: Values): Look {
 // The touch indicator is the panning indicator, and it keeps its look while the bars fade out: the
 // `touch` attribute follows the last indicator that showed (the host's `last-indicator`).
 function followIndicator(part: AxScrollbarPart, next: Readonly<PartState>): void {
-    if (next.indicator !== 'none') part.toggleAttribute('touch', next.indicator === 'touch');
+    if (next.indicator !== 'none' && part.hasAttribute('touch') !== (next.indicator === 'touch')) part.toggleAttribute('touch', next.indicator === 'touch');
 }
 
 export class AxScrollbarDefaultThumb extends AxScrollbarThumb {

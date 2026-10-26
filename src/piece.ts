@@ -47,26 +47,61 @@ const MARKER_TOKENS: [keyof PartState, string][] = TOKENS.concat([
 ]);
 
 export class Piece<E extends HTMLElement = HTMLElement> {
-    readonly el: E;
+    // Made the first time it is needed (ensure()), and kept: a part that is never shown is never created.
+    private node: E | null = null;
+    private readonly make: () => E;
+    // Method-style, so that a piece of a part class is a piece of an element (the hook takes what it made).
+    private readonly onCreate: { hook(el: E): void }['hook'] | null;
     // The state wished for; flush() writes it.
     readonly state: PartState;
     private readonly base: string;
     // The prefix of the state tokens (`thumb` gives thumb-hover); null: the state makes no tokens.
     private readonly prefix: string | null;
-    private readonly extra = new Set<string>();
+    private readonly className: string;
+    // The tokens set with toggle(), made when the first one is (most pieces have none).
+    private extra: Set<string> | null = null;
     private written: string;
     // The state or a token changed since the last flush: a frame in which nothing changed writes nothing
     // (and builds no strings), however many parts there are.
     private dirty = true;
 
-    constructor(el: E, base: string[], prefix: string | null, className: string, axis: Axis = 'vertical') {
-        this.el = el;
-        this.el.className = className;
+    // `make` builds the element; `onCreate` puts it in its place and gives it what the host forwards.
+    constructor(make: () => E, base: string[], prefix: string | null, className: string, axis: Axis = 'vertical', onCreate: ((el: E) => void) | null = null) {
+        this.make = make;
+        this.onCreate = onCreate;
+        this.className = className;
         this.base = base.join(' ');
         this.prefix = prefix;
         this.state = initialState(axis);
         this.written = this.base;
-        this.el.setAttribute('part', this.base);
+    }
+
+    // The element if it has been made, null before.
+    get element(): E | null {
+        return this.node;
+    }
+
+    get created(): boolean {
+        return this.node !== null;
+    }
+
+    // The element, made now if this is the first time it is needed. What was set on the piece before
+    // (its state, its tokens) is written by the next flush.
+    ensure(): E {
+        let el = this.node;
+        if (el) return el;
+        el = this.node = this.make();
+        el.className = this.className;
+        el.setAttribute('part', this.base);
+        this.written = this.base;
+        this.dirty = true;
+        if (this.onCreate) this.onCreate(el);
+        return el;
+    }
+
+    // The element of a piece that is always there (a bar): made on the first use.
+    get el(): E {
+        return this.node || this.ensure();
     }
 
     set(patch: Partial<PartState>): void {
@@ -81,6 +116,10 @@ export class Piece<E extends HTMLElement = HTMLElement> {
 
     // A token that is not part of the state (the lifecycle of a card). Written by flush().
     toggle(token: string, on: boolean): void {
+        if (!this.extra) {
+            if (!on) return;
+            this.extra = new Set();
+        }
         if (this.extra.has(token) === on) return;
         if (on) this.extra.add(token);
         else this.extra.delete(token);
@@ -88,10 +127,12 @@ export class Piece<E extends HTMLElement = HTMLElement> {
     }
 
     flush(): void {
-        if (!this.dirty) return;
+        const el = this.node;
+        // A part that is not made yet keeps its state for when it is.
+        if (!el || !this.dirty) return;
         this.dirty = false;
-        const el = this.el;
-        const part = [this.base].concat(this.tokens()).join(' ');
+        const list = this.tokens();
+        const part = list.length ? `${this.base} ${list.join(' ')}` : this.base;
         const changed = part !== this.written;
         if (changed) {
             this.written = part;
@@ -107,8 +148,8 @@ export class Piece<E extends HTMLElement = HTMLElement> {
     private tokens(): string[] {
         const list: string[] = [];
         if (this.prefix) for (const [key, suffix] of this.prefix === 'marker' ? MARKER_TOKENS : TOKENS) if (this.on(key)) list.push(`${this.prefix}-${suffix}`);
-        this.extra.forEach((token) => list.push(token));
-        return list.sort();
+        if (this.extra) this.extra.forEach((token) => list.push(token));
+        return list.length > 1 ? list.sort() : list;
     }
 
     private on(key: keyof PartState): boolean {

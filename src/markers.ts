@@ -16,8 +16,8 @@ export interface PlacedMarker {
     anchor: number;          // scroll position that aligns it (geometry.markerAnchor)
     offset: number;          // logical centre on the track (geometry.markerOffset), for hit tests
     shown: number | null;    // the centre drawn, on its way to `offset`; null before the first draw
-    part: Piece;             // the .marker element
-    slot: HTMLElement;       // the .slot element
+    part: Piece;             // the .marker element, made when the mark is drawn (see MarkerSet.materialize)
+    slot: HTMLElement | null; // the .slot element, made with it
     // Markers closer than the spacing share one mark: the first of them leads and carries all of
     // them (itself first); the others are not drawn and not hit. For a marker alone: [itself].
     members: PlacedMarker[];
@@ -43,11 +43,14 @@ export class MarkerSet {
     private pressed: PlacedMarker | null = null;
 
     private readonly cls: PartClass;
+    private readonly made: (el: HTMLElement) => void;
 
-    constructor(axis: Axis, container: HTMLElement, cls: PartClass) {
+    // `made` is told of each marker element as it is made (the host forwards the layers to it).
+    constructor(axis: Axis, container: HTMLElement, cls: PartClass, made: (el: HTMLElement) => void = () => {}) {
         this.axis = axis;
         this.container = container;
         this.cls = cls;
+        this.made = made;
     }
 
     set(markers: ScrollMarker[]): void {
@@ -71,8 +74,13 @@ export class MarkerSet {
     // every scroller before any of them writes.
     static measure(target: ScrollTarget, markers: ScrollMarker[]): Map<ScrollMarker, number> {
         const positions = new Map<ScrollMarker, number>();
+        // The scroller and its position are read once for all the markers (the box of the scroller and its
+        // position are the same for every element measured against it).
+        const viewport = markers.some((marker) => marker.element) ? target.viewport() : undefined;
+        const at = { vertical: target.position('vertical'), horizontal: target.position('horizontal') };
         for (const marker of markers) {
-            positions.set(marker, marker.element ? target.contentOffset(marker.element, marker.axis ?? 'vertical') : (marker.position ?? 0));
+            const axis = marker.axis ?? 'vertical';
+            positions.set(marker, marker.element ? target.contentOffset(marker.element, axis, viewport, at[axis]) : (marker.position ?? 0));
         }
         return positions;
     }
@@ -103,8 +111,9 @@ export class MarkerSet {
             group.forEach((m, i) => {
                 m.leader = i === 0;
                 if (i) m.members = [m];
+                // A marker that is not made yet takes its display when it is.
                 const display = i ? 'none' : '';
-                if (m.slot.style.display !== display) m.slot.style.display = display;
+                if (m.slot && m.slot.style.display !== display) m.slot.style.display = display;
             });
             group = [];
         };
@@ -135,7 +144,7 @@ export class MarkerSet {
             // Writes only on change: a slot that does not move costs no style recalculation.
             if (this.transforms.get(placed) === transform) continue;
             this.transforms.set(placed, transform);
-            placed.slot.style.transform = transform;
+            if (placed.slot) placed.slot.style.transform = transform;
         }
         return moving;
     }
@@ -186,21 +195,55 @@ export class MarkerSet {
         }
     }
 
+    // Makes the elements of the marks that are drawn (the bar is shown, and shows markers), once: the
+    // markers that are not drawn (merged into another mark, or on a bar that never shows) are
+    // only data. Returns whether one was made.
+    materialize(): boolean {
+        let made = false;
+        // The slots of the marks made now go into the bar together, in one insertion.
+        const batch = document.createDocumentFragment();
+        for (const placed of this.marks) {
+            if (placed.part.created) continue;
+            this.batch = batch;
+            placed.part.ensure();
+            made = true;
+        }
+        this.batch = null;
+        if (made) this.container.appendChild(batch);
+        return made;
+    }
+
+    // Where the slot of the marker being made goes (see materialize).
+    private batch: DocumentFragment | null = null;
+
     private create(marker: ScrollMarker): PlacedMarker {
-        const part = new Piece(createPart(this.cls), ['marker', 'marker-' + this.axis], 'marker', 'marker', this.axis);
-        part.el.setAttribute('data-id', marker.id);
-        const slot = document.createElement('div');
-        slot.className = 'slot';
-        slot.appendChild(part.el);
-        this.container.appendChild(slot);
-        const placed: PlacedMarker = { marker, contentPosition: 0, anchor: 0, offset: 0, shown: null, part, slot, members: [], leader: true };
+        // The state set before the element exists (a hover, a press) is written when it is made.
+        const part: Piece = new Piece(
+            () => createPart(this.cls),
+            ['marker', 'marker-' + this.axis],
+            'marker',
+            'marker',
+            this.axis,
+            (el) => {
+                el.setAttribute('data-id', placed.marker.id);
+                // The layers first: a part that is in the page already would build them twice.
+                this.made(el);
+                const slot = document.createElement('div');
+                slot.className = 'slot';
+                if (!placed.leader) slot.style.display = 'none';
+                slot.appendChild(el);
+                (this.batch || this.container).appendChild(slot);
+                placed.slot = slot;
+            },
+        );
+        const placed: PlacedMarker = { marker, contentPosition: 0, anchor: 0, offset: 0, shown: null, part, slot: null, members: [], leader: true };
         placed.members = [placed];
         this.byId.set(marker.id, placed);
         return placed;
     }
 
     private remove(placed: PlacedMarker): void {
-        placed.slot.remove();
+        if (placed.slot) placed.slot.remove();
         this.byId.delete(placed.marker.id);
         this.transforms.delete(placed);
         if (this.hovered === placed) this.hovered = null;

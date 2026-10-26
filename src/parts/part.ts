@@ -75,6 +75,7 @@ const MAX_FRAME = 100;
 // first, so a subclass refines what its base class sets. One sheet per class, shared by every
 // instance. A browser without constructable style sheets gets style elements instead.
 const sheets = new WeakMap<object, (CSSStyleSheet | string)[]>();
+const sheetOfText = new Map<string, CSSStyleSheet>();
 
 function sheetsOf(cls: typeof AxScrollbarPart): (CSSStyleSheet | string)[] {
     let list = sheets.get(cls);
@@ -87,8 +88,13 @@ function sheetsOf(cls: typeof AxScrollbarPart): (CSSStyleSheet | string)[] {
     const constructable = typeof CSSStyleSheet === 'function' && 'adoptedStyleSheets' in Document.prototype && 'replaceSync' in CSSStyleSheet.prototype;
     list = texts.map((text) => {
         if (!constructable) return text;
-        const sheet = new CSSStyleSheet();
-        sheet.replaceSync(text);
+        // The same text (the reset every class starts with) is one sheet.
+        let sheet = sheetOfText.get(text);
+        if (!sheet) {
+            sheet = new CSSStyleSheet();
+            sheet.replaceSync(text);
+            sheetOfText.set(text, sheet);
+        }
         return sheet;
     });
     sheets.set(cls, list);
@@ -139,15 +145,23 @@ export abstract class AxScrollbarPart extends AxSurface {
     constructor() {
         super();
         if (this.hiddenAtRest) this.paused = true;
-        const root = this.shadowRoot as ShadowRoot;
+        // The sheets of the class are adopted by Surface (see extraSheets); a browser without constructable
+        // style sheets gets them as style elements.
         const list = sheetsOf(this.constructor as typeof AxScrollbarPart);
-        if (list.length && typeof list[0] !== 'string') root.adoptedStyleSheets = root.adoptedStyleSheets.concat(list as CSSStyleSheet[]);
-        else
+        if (list.length && typeof list[0] === 'string') {
+            const root = this.shadowRoot as ShadowRoot;
             for (const text of list) {
                 const style = document.createElement('style');
                 style.textContent = text as string;
                 root.appendChild(style);
             }
+        }
+    }
+
+    // The shadow style of the class chain, as the sheets every instance adopts after Surface's own.
+    static extraSheets(): CSSStyleSheet[] {
+        const list = sheetsOf(this as unknown as typeof AxScrollbarPart);
+        return list.length && typeof list[0] !== 'string' ? (list as CSSStyleSheet[]) : [];
     }
 
     get [PART_BRAND as unknown as string](): boolean {
@@ -163,13 +177,23 @@ export abstract class AxScrollbarPart extends AxSurface {
     // inside a third-party shadow root.
     setPartState(next: PartState): void {
         if (this.stateSet && sameState(this.state, next)) return;
+        const first = !this.stateSet;
         this.stateSet = true;
         const prev = this.state;
         this.state = { ...next };
-        this.setAttribute('axis', next.axis);
-        if (next.direction) this.setAttribute('direction', next.direction);
-        else this.removeAttribute('direction');
-        for (const [key, name] of BOOLEANS) this.toggleAttribute(name, (next[key] as boolean) || (key === 'hover' && next.pressed && (this.constructor as typeof AxScrollbarPart).kind === 'marker'));
+        // Only what changed is written: a part has no attribute before its first state, and each write is a call into the DOM.
+        if (first || prev.axis !== next.axis) this.setAttribute('axis', next.axis);
+        if (first ? next.direction : prev.direction !== next.direction) {
+            if (next.direction) this.setAttribute('direction', next.direction);
+            else this.removeAttribute('direction');
+        }
+        // A pressed marker counts as hovered.
+        const marker = (this.constructor as typeof AxScrollbarPart).kind === 'marker';
+        for (const [key, name] of BOOLEANS) {
+            const on = (next[key] as boolean) || (key === 'hover' && next.pressed && marker);
+            const was = !first && ((prev[key] as boolean) || (key === 'hover' && prev.pressed && marker));
+            if (on !== was) this.toggleAttribute(name, on);
+        }
         this.stateChanged(prev, next);
         if (next.indicator === 'none') this.sawHidden = true;
         if (this.hiddenAtRest && next.indicator !== 'none') this.paused = false;

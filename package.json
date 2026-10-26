@@ -1,6 +1,6 @@
 {
     "name": "@ax-design/scrollbar",
-    "version": "0.4.2",
+    "version": "0.4.3",
     "description": "Web components that replace the scrollbars of a container or of the page with ones you style with CSS, for Axiom Design System.",
     "main": "build/main.js",
     "module": "es/index.js",
@@ -15,8 +15,8 @@
         "@ax-design/elevation": "^0.2.3",
         "@ax-design/scroll": "^0.2.1",
         "@ax-design/shape": "^0.3.0",
-        "@ax-design/surface": "^0.4.3",
-        "@ax-design/typed-om": "^0.3.0"
+        "@ax-design/surface": "^0.4.4",
+        "@ax-design/typed-om": "^0.3.1"
     },
     "devDependencies": {
         "@ax-design/acrylic": "^0.3.2",

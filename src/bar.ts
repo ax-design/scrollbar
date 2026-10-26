@@ -2,8 +2,9 @@ import { physical } from './geometry.js';
 import type { AxisLayout } from './geometry.js';
 import { createPart } from './kits.js';
 import type { PartClasses } from './kits.js';
-import type { AxScrollbarTrackPiece, PartState } from './parts/part.js';
+import type { AxScrollbarTrackPiece, PartKind, PartState } from './parts/part.js';
 import { Piece, writeStyle } from './piece.js';
+import { THUMB_MIN_LENGTH } from './tokens.js';
 import type { Axis } from './types.js';
 
 // Rounded to 1/100 px: whole pixels would make a thumb jitter while it moves.
@@ -57,55 +58,84 @@ export class Bar {
     readonly clipEnd: HTMLElement;
     readonly markers: HTMLElement;
 
-    constructor(axis: Axis, classes: PartClasses) {
+    // `made` is told of each part element as it is made (the host forwards the layers to it).
+    constructor(axis: Axis, classes: PartClasses, made: (kind: PartKind, el: HTMLElement) => void = () => {}) {
         this.axis = axis;
         const suffix = '-' + axis;
-        const div = () => document.createElement('div');
-        this.root = new Piece(div(), ['scrollbar', 'scrollbar' + suffix], null, axis === 'vertical' ? 'bar v' : 'bar h', axis);
-        this.buttonStart = new Piece(createPart(classes.button), ['button', 'button-start', 'button' + suffix], 'button', 'button start', axis);
-        this.buttonEnd = new Piece(createPart(classes.button), ['button', 'button-end', 'button' + suffix], 'button', 'button end', axis);
+        const div = (className: string): HTMLElement => {
+            const el = document.createElement('div');
+            el.className = className;
+            return el;
+        };
+        this.root = new Piece(() => document.createElement('div'), ['scrollbar', 'scrollbar' + suffix], null, axis === 'vertical' ? 'bar v' : 'bar h', axis);
+        this.area = div('area');
+        this.clipStart = div('clip start');
+        this.clipEnd = div('clip end');
+        this.markers = div('markers');
+        // A part is made the first time the bar shows it (see setParts), and put in its place then.
+        // Later children paint above earlier ones: markers sit over the thumb.
+        const part = <E extends HTMLElement = HTMLElement>(kind: PartKind, tokens: string[], className: string, put: (el: E) => void): Piece<E> =>
+            new Piece<E>(() => createPart(classes[kind]) as E, tokens, kind, className, axis, (el) => {
+                // The layers first: a part that is in the page already would build them twice.
+                made(kind, el);
+                put(el);
+            });
+        const root = this.root.el;
+        this.buttonStart = part('button', ['button', 'button-start', 'button' + suffix], 'button start', (el) => root.insertBefore(el, this.area));
+        this.buttonEnd = part('button', ['button', 'button-end', 'button' + suffix], 'button end', (el) => root.appendChild(el));
+        this.track = part('track', ['track', 'track' + suffix], 'track', (el) => this.area.insertBefore(el, this.clipStart));
+        this.pieceStart = part<AxScrollbarTrackPiece>('track-piece', ['track-piece', 'track-piece-start', 'track-piece' + suffix], 'piece start', (el) => this.clipStart.appendChild(el));
+        this.pieceEnd = part<AxScrollbarTrackPiece>('track-piece', ['track-piece', 'track-piece-end', 'track-piece' + suffix], 'piece end', (el) => this.clipEnd.appendChild(el));
+        this.thumb = part('thumb', ['thumb', 'thumb' + suffix], 'thumb', (el) => this.area.insertBefore(el, this.markers));
         this.buttonStart.set({ direction: 'start' });
         this.buttonEnd.set({ direction: 'end' });
-        this.track = new Piece(createPart(classes.track), ['track', 'track' + suffix], 'track', 'track', axis);
-        this.pieceStart = new Piece(createPart(classes['track-piece']) as AxScrollbarTrackPiece, ['track-piece', 'track-piece-start', 'track-piece' + suffix], 'track-piece', 'piece start', axis);
-        this.pieceEnd = new Piece(createPart(classes['track-piece']) as AxScrollbarTrackPiece, ['track-piece', 'track-piece-end', 'track-piece' + suffix], 'track-piece', 'piece end', axis);
         this.pieceStart.set({ direction: 'start' });
         this.pieceEnd.set({ direction: 'end' });
-        this.thumb = new Piece(createPart(classes.thumb), ['thumb', 'thumb' + suffix], 'thumb', 'thumb', axis);
-        this.area = div();
-        this.area.className = 'area';
-        this.clipStart = div();
-        this.clipStart.className = 'clip start';
-        this.clipStart.appendChild(this.pieceStart.el);
-        this.clipEnd = div();
-        this.clipEnd.className = 'clip end';
-        this.clipEnd.appendChild(this.pieceEnd.el);
-        this.markers = div();
-        this.markers.className = 'markers';
-        // Later children paint above earlier ones: markers sit over the thumb.
-        for (const el of [this.track.el, this.clipStart, this.clipEnd, this.thumb.el]) this.area.appendChild(el);
-        this.area.appendChild(this.markers);
-        this.root.el.appendChild(this.buttonStart.el);
-        this.root.el.appendChild(this.area);
-        this.root.el.appendChild(this.buttonEnd.el);
+        for (const el of [this.clipStart, this.clipEnd, this.markers]) this.area.appendChild(el);
+        root.appendChild(this.area);
+        // Not seen until the first draw: until then the parts have no place along the track.
+        writeStyle(root, 'visibility', 'hidden');
     }
 
     setDisplayed(on: boolean): boolean {
         return writeStyle(this.root.el, 'display', on ? '' : 'none');
     }
 
-    // Hidden parts are there but not displayed: they take no room and no input, and showing them
-    // again is cheap. The track hides its pieces with it.
-    // Returns whether anything changed.
-    setHidden(hidden: BarHidden): boolean {
+    // Whether a part that the look shows is not made yet (setParts would make it): what was read of a
+    // bar before that has no room for the buttons, so it is read again after.
+    missing(hidden: BarHidden): boolean {
+        if (!hidden.buttons && (!this.buttonStart.created || !this.buttonEnd.created)) return true;
+        if (!hidden.thumb && !this.thumb.created) return true;
+        if (!hidden.track && !this.track.created) return true;
+        return !hidden.track && !hidden.pieces && (!this.pieceStart.created || !this.pieceEnd.created);
+    }
+
+    // The parts the bar shows now: each is made the first time it is wanted and kept after, and one
+    // the look leaves out is not displayed (and not made if it never was): it takes no room and no
+    // input. A bar that is not displayed makes nothing. The track hides its pieces with it.
+    // Returns whether anything changed: a part made or shown or hidden changes the room of the track.
+    setParts(displayed: boolean, hidden: BarHidden): boolean {
+        if (!displayed) return false;
         let changed = false;
-        const display = (piece: Piece | HTMLElement, off: boolean) => {
-            if (writeStyle(piece instanceof Piece ? piece.el : piece, 'display', off ? 'none' : '')) changed = true;
+        const display = (el: HTMLElement, off: boolean) => {
+            if (writeStyle(el, 'display', off ? 'none' : '')) changed = true;
         };
-        display(this.buttonStart, hidden.buttons);
-        display(this.buttonEnd, hidden.buttons);
-        display(this.thumb, hidden.thumb);
-        display(this.track, hidden.track);
+        const part = (piece: Piece, off: boolean) => {
+            if (off) {
+                const el = piece.element;
+                if (el) display(el, true);
+                return;
+            }
+            const was = piece.created;
+            display(piece.ensure(), false);
+            if (!was) changed = true;
+        };
+        part(this.buttonStart, hidden.buttons);
+        part(this.buttonEnd, hidden.buttons);
+        part(this.thumb, hidden.thumb);
+        part(this.track, hidden.track);
+        part(this.pieceStart, hidden.track || hidden.pieces);
+        part(this.pieceEnd, hidden.track || hidden.pieces);
         display(this.clipStart, hidden.track || hidden.pieces);
         display(this.clipEnd, hidden.track || hidden.pieces);
         display(this.markers, hidden.markers);
@@ -121,8 +151,12 @@ export class Bar {
         return this.axis === 'vertical' ? this.area.clientHeight : this.area.clientWidth;
     }
 
+    // The thumb's minimum length: from the thumb, which the author may size with a rule of its own, or, while
+    // the thumb is not made (the look hides it, or the bar is just being shown), from the token it is sized by.
     minThumb(): number {
-        const style = getComputedStyle(this.thumb.el);
+        const thumb = this.thumb.element;
+        if (!thumb) return parseFloat(getComputedStyle(this.area).getPropertyValue(THUMB_MIN_LENGTH)) || 0;
+        const style = getComputedStyle(thumb);
         return parseFloat(this.axis === 'vertical' ? style.minHeight : style.minWidth) || 0;
     }
 
@@ -131,6 +165,7 @@ export class Bar {
     // every scroll frame; a layer also rasters at its own fractional offset, which is what made a
     // thumb start a device pixel before the button beside it.
     render(layout: AxisLayout, rtl: boolean, exact = false): void {
+        writeStyle(this.root.el, 'visibility', '');
         const vertical = this.axis === 'vertical';
         const track = layout.track;
         const length = vertical ? 'height' : 'width';
@@ -145,9 +180,13 @@ export class Bar {
         };
 
         const thumbStart = start(layout.thumbOffset, layout.thumbLength);
-        writeStyle(this.thumb.el, length, len(layout.thumbLength));
-        writeStyle(this.thumb.el, 'transform', move(thumbStart));
-        writeStyle(this.thumb.el, THUMB_NUDGE, exact ? `${nudge(thumbStart)}px` : '');
+        // A part the look never shows is not made, and has nothing to move.
+        const thumb = this.thumb.element;
+        if (thumb) {
+            writeStyle(thumb, length, len(layout.thumbLength));
+            writeStyle(thumb, 'transform', move(thumbStart));
+            writeStyle(thumb, THUMB_NUDGE, exact ? `${nudge(thumbStart)}px` : '');
+        }
 
         // A piece is the whole track clipped to its side of the thumb (see AxScrollbarTrackPiece).
         // Across the axis nothing is clipped: the piece may slide out of the track (the default
@@ -158,13 +197,14 @@ export class Bar {
             const after = len(Math.max(0, track - to));
             const [top, right, bottom, left] = vertical ? [before, '-100%', after, '-100%'] : rtl ? ['-100%', before, '-100%', after] : ['-100%', after, '-100%', before];
             const value = `inset(${top} ${right} ${bottom} ${left})`;
-            writeStyle(el, '-webkit-clip-path', value);
             writeStyle(el, 'clip-path', value);
         };
         clip(this.clipStart, 0, layout.thumbOffset);
         clip(this.clipEnd, thumbEnd, track);
-        this.pieceStart.el.setSpan(0, layout.thumbOffset);
-        this.pieceEnd.el.setSpan(thumbEnd, Math.max(0, track - thumbEnd));
+        const start0 = this.pieceStart.element;
+        const end0 = this.pieceEnd.element;
+        if (start0) start0.setSpan(0, layout.thumbOffset);
+        if (end0) end0.setSpan(thumbEnd, Math.max(0, track - thumbEnd));
     }
 
     flush(shared: BarState): void {
