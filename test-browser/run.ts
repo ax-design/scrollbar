@@ -652,6 +652,77 @@ const checks: Check[] = [
         },
     },
     {
+        name: 'ax-scrollbar follows the size of the document and the places of its markers without a scroll or a resize: a style sheet changes the content inside a box that keeps its size',
+        run: async (t) => {
+            await t.reset();
+            await t.page.evaluate(() => {
+                const bar = document.getElementById('page') as HTMLElement;
+                const shell = document.createElement('div');
+                shell.id = 'doc-shell';
+                shell.style.cssText = 'position: absolute; left: 0; top: 0; width: 100px; height: 50px';
+                shell.innerHTML = '<style>#doc-inner { position: relative; width: 2000px; height: 3000px } .dm { position: absolute; left: 0; margin: 0 } #dm1 { top: 1000px } #dm2 { top: 2000px }</style><div id="doc-inner"><h4 id="dm1" class="dm">One</h4><h4 id="dm2" class="dm">Two</h4></div>';
+                document.body.appendChild(shell);
+                bar.setAttribute('marker-selector', '.dm');
+            });
+            await t.settle();
+            const read = async () => {
+                const m = await t.call('metrics', 'page');
+                const area = await t.box('page', 'area-vertical');
+                const thumb = await t.box('page', 'thumb-vertical');
+                const areaX = await t.box('page', 'area-horizontal');
+                const thumbX = await t.box('page', 'thumb-horizontal');
+                const m1 = await t.box('page', 'marker:dm1');
+                const m2 = await t.box('page', 'marker:dm2');
+                return { m, area, thumb, areaX, thumbX, y1: m1.top - area.top, y2: m2.top - area.top };
+            };
+            try {
+                const before = await read();
+                await t.page.evaluate(() => {
+                    const sheet = new CSSStyleSheet();
+                    sheet.replaceSync('#doc-inner { width: 6000px; height: 9000px } #dm1 { top: 3000px } #dm2 { top: 6000px } ');
+                    (window as unknown as { docSheet: CSSStyleSheet }).docSheet = sheet;
+                    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+                });
+                // A style sheet gives no mutation: the page's bars compare its size every 100ms.
+                await t.sleep(1000);
+                const after = await read();
+                const real = await t.page.evaluate(() => document.scrollingElement!.scrollHeight);
+                expect(real > before.m.scrollHeight, `precondition: the document grew (${before.m.scrollHeight} to ${real})`);
+                // The truth: what a window resize lays out.
+                await t.page.evaluate(() => window.dispatchEvent(new Event('resize')));
+                await t.sleep(1000);
+                const truth = await read();
+                near(after.thumb.height, truth.thumb.height, 0.5, 'thumb height without a resize');
+                near(after.thumbX.width, truth.thumbX.width, 0.5, 'horizontal thumb width without a resize');
+                near(after.y1, truth.y1, 0.5, 'first marker without a resize');
+                near(after.y2, truth.y2, 0.5, 'second marker without a resize');
+                expect(Math.abs(after.thumb.height - before.thumb.height) > 1, `the thumb did not change with the document (${before.thumb.height} and ${after.thumb.height})`);
+                // A node added: the next frame or two.
+                await t.page.evaluate(() => {
+                    const add = document.createElement('div');
+                    add.style.cssText = 'position: absolute; top: 0; left: 0; width: 1px; height: 14000px';
+                    document.getElementById('doc-inner')!.appendChild(add);
+                });
+                await t.sleep(1000);
+                const added = await read();
+                await t.page.evaluate(() => window.dispatchEvent(new Event('resize')));
+                await t.sleep(1000);
+                const addedTruth = await read();
+                near(added.thumb.height, addedTruth.thumb.height, 0.5, 'thumb height after a node was added');
+                near(added.y2, addedTruth.y2, 0.5, 'marker after a node was added');
+                expect(Math.abs(added.thumb.height - after.thumb.height) > 1, 'the thumb did not change when a node grew the document');
+            } finally {
+                await t.page.evaluate(() => {
+                    const w = window as unknown as { docSheet?: CSSStyleSheet };
+                    if (w.docSheet) document.adoptedStyleSheets = document.adoptedStyleSheets.filter((x) => x !== w.docSheet);
+                    document.getElementById('doc-shell')?.remove();
+                    document.getElementById('page')?.removeAttribute('marker-selector');
+                });
+                await t.sleep(1000);
+            }
+        },
+    },
+    {
         name: 'snap: thumb edges on whole device pixels at a fractional y',
         run: async (t) => {
             await t.reset();

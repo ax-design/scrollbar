@@ -2,6 +2,10 @@
 
 All notable changes to this package are documented in this file.
 
+## 0.3.1
+
+- Fix: the bars of `<ax-scrollbar>` follow the size of the document and the places of the markers when the content changes without a scroll or a resize of the window (a client-side navigation, a style sheet, a node added). A node added or removed lays the bars out on the next frame, and the document's scroll size is compared every 100ms.
+
 ## 0.3.0
 
 - `touch="indicator|bar"` is the one setting for touch. `indicator` (the default) shows the thumb alone as a panning indicator that takes no input; `bar` makes the bars look and work on touch as they do with a mouse. It replaces `touch-input`.

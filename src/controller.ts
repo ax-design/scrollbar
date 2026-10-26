@@ -31,6 +31,9 @@ export interface ControllerOptions {
 }
 
 type Metrics = Omit<AxisMetrics, 'position'>;
+// How often the page's bars compare the size of the document with the one they laid out.
+const SIZE_POLL = 100;
+
 type Indicator = 'none' | 'mouse' | 'touch';
 
 interface AxisState {
@@ -235,6 +238,12 @@ export class ScrollbarController implements InputHost {
     private resizeObserver: ResizeObserver | null = null;
     private attrObserver: MutationObserver | null = null;
     private selectorObserver: MutationObserver | null = null;
+    // The page: nothing reports a change of its scroll size that no element's own size shows (a
+    // content box that keeps its size while what it holds grows, a style sheet that moves the
+    // markers), so a change of the document's content is a layout pass, and the size is read on a timer.
+    private documentObserver: MutationObserver | null = null;
+    private sizeTimer = 0;
+    private sizeSeen = '';
 
     constructor(options: ControllerOptions) {
         this.options = options;
@@ -305,6 +314,7 @@ export class ScrollbarController implements InputHost {
         if (this.target.isDocument) this.attrObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['dir'] });
         this.selectorObserver = new MutationObserver(this.onContentChange);
         this.syncSelectorObserver();
+        if (this.target.isDocument) this.watchDocument();
 
         setAttr(this.host, 'indicator-state', this.indicator);
         setAttr(this.host, 'last-indicator', this.lastShown);
@@ -359,6 +369,10 @@ export class ScrollbarController implements InputHost {
         this.attrObserver = null;
         if (this.selectorObserver) this.selectorObserver.disconnect();
         this.selectorObserver = null;
+        if (this.documentObserver) this.documentObserver.disconnect();
+        this.documentObserver = null;
+        clearTimeout(this.sizeTimer);
+        this.sizeTimer = 0;
 
         // Hover and press tokens would otherwise stay on the parts until the next connect.
         for (const axis of AXES) {
@@ -762,6 +776,28 @@ export class ScrollbarController implements InputHost {
         }
         for (const axis of AXES) list.push(this.bars[axis].root.el, this.bars[axis].area);
         return list;
+    }
+
+    // The page's bars follow the content of the document: a node added or removed is a layout pass
+    // on the next frame, and the scroll size and the client size are compared every SIZE_POLL ms.
+    private watchDocument(): void {
+        this.documentObserver = new MutationObserver(this.onLayoutChange);
+        this.documentObserver.observe(document.documentElement, { childList: true, subtree: true });
+        this.sizeSeen = this.documentSize();
+        const poll = (): void => {
+            const size = this.documentSize();
+            if (size !== this.sizeSeen) {
+                this.sizeSeen = size;
+                this.onLayoutChange();
+            }
+            this.sizeTimer = window.setTimeout(poll, SIZE_POLL);
+        };
+        this.sizeTimer = window.setTimeout(poll, SIZE_POLL);
+    }
+
+    private documentSize(): string {
+        const t = this.target;
+        return `${t.size('vertical')} ${t.size('horizontal')} ${t.client('vertical')} ${t.client('horizontal')}`;
     }
 
     private syncSelectorObserver(): void {
