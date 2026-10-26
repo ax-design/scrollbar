@@ -13,6 +13,12 @@ const browser = await chromium.launch(system ? { executablePath: system } : {});
 async function once(withProfile: boolean) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
     const page = await context.newPage();
+    // WITHOUT=ax-scroll-view,ax-scrollbar: those elements are never defined, to see what the page costs without them.
+    await page.addInitScript((without: string) => {
+        const skip = new Set(without.split(',').filter(Boolean));
+        const define = customElements.define.bind(customElements);
+        customElements.define = ((name: string, ...rest: any[]) => (skip.has(name) ? undefined : (define as any)(name, ...rest))) as any;
+    }, process.env.WITHOUT || '');
     await page.addInitScript(() => {
         const w = window as any;
         w.__long = [];
