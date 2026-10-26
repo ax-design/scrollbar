@@ -75,3 +75,5 @@ node_modules/
 test-browser/dist/
 demo/dist/
 demo/dist/
+bench/dist/
+bench/results-*.json

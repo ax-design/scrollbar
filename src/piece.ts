@@ -10,16 +10,22 @@ import type { Axis } from './types.js';
 // write to a surface's style would make it re-read its shape.
 const written = new WeakMap<HTMLElement, { [name: string]: string }>();
 
-// Sets one inline style property (CSS name). An empty value removes it.
-export function writeStyle(el: HTMLElement, name: string, value: string): void {
+// Sets one inline style property (CSS name). An empty value removes it. Returns whether the value
+// is a new one.
+export function writeStyle(el: HTMLElement, name: string, value: string): boolean {
     let record = written.get(el);
     if (!record) {
         record = {};
         written.set(el, record);
     }
-    if (record[name] === value) return;
+    // Nothing written yet is the same as nothing: an empty value for a property never set changes nothing.
+    if ((record[name] ?? '') === value) {
+        record[name] = value;
+        return false;
+    }
     record[name] = value;
     el.style.setProperty(name, value);
+    return true;
 }
 
 export function isPart(el: Element): el is AxScrollbarPart {
@@ -49,6 +55,9 @@ export class Piece<E extends HTMLElement = HTMLElement> {
     private readonly prefix: string | null;
     private readonly extra = new Set<string>();
     private written: string;
+    // The state or a token changed since the last flush: a frame in which nothing changed writes nothing
+    // (and builds no strings), however many parts there are.
+    private dirty = true;
 
     constructor(el: E, base: string[], prefix: string | null, className: string, axis: Axis = 'vertical') {
         this.el = el;
@@ -61,16 +70,26 @@ export class Piece<E extends HTMLElement = HTMLElement> {
     }
 
     set(patch: Partial<PartState>): void {
-        Object.assign(this.state, patch);
+        const state = this.state as unknown as { [key: string]: unknown };
+        for (const key of Object.keys(patch)) {
+            const value = (patch as { [key: string]: unknown })[key];
+            if (state[key] === value) continue;
+            state[key] = value;
+            this.dirty = true;
+        }
     }
 
     // A token that is not part of the state (the lifecycle of a card). Written by flush().
     toggle(token: string, on: boolean): void {
+        if (this.extra.has(token) === on) return;
         if (on) this.extra.add(token);
         else this.extra.delete(token);
+        this.dirty = true;
     }
 
     flush(): void {
+        if (!this.dirty) return;
+        this.dirty = false;
         const el = this.el;
         const part = [this.base].concat(this.tokens()).join(' ');
         const changed = part !== this.written;

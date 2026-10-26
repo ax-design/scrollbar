@@ -66,6 +66,8 @@ interface Ctx {
     park(): Promise<void>;
     // A second page in a context with touch, driven by CDP touch events. Made on first use.
     touch(): Promise<TouchCtx>;
+    // A page of its own at a device pixel ratio; close() when done.
+    scaled(dpr: number): Promise<{ page: any; call<T = any>(fn: string, ...args: unknown[]): Promise<T>; close(): Promise<void> }>;
 }
 
 interface TouchCtx {
@@ -683,7 +685,9 @@ const checks: Check[] = [
                     (window as unknown as { docSheet: CSSStyleSheet }).docSheet = sheet;
                     document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
                 });
-                // A style sheet gives no mutation: the page's bars compare its size every 100ms.
+                // A style sheet gives no mutation and no resize of anything observed, and nothing is polled:
+                // the page's bars compare its size in the first frame that runs, here for a pointer at the bar.
+                await t.page.mouse.move(796, 300);
                 await t.sleep(1000);
                 const after = await read();
                 const real = await t.page.evaluate(() => document.scrollingElement!.scrollHeight);
@@ -2302,6 +2306,7 @@ const checks: Check[] = [
                 // Start sampling before the pointer moves in, so the fade's first frames are in the rows. The
                 // window ends before the 700ms hide delay, so the fade out does not begin inside it.
                 const fadingIn = t.call<[number, string][]>('sample', 'surf', 'thumb-vertical', '--ax-scrollbar-shown-opacity', 600);
+                await t.sleep(60);
                 await t.page.mouse.move(host.left + 40, host.top + 40);
                 rows = await fadingIn;
                 const inFade = linearFade(rows, true, 400);
@@ -2312,6 +2317,7 @@ const checks: Check[] = [
                 expect(settled.length > 0 && settled.every((r) => parseFloat(r[1]) === 1), `the fade in did not end: ${JSON.stringify(rows.filter((_, i) => i % 3 === 0))}`);
                 // Out: after the hide delay, linear over 400ms.
                 const fadingOut = t.call<[number, string][]>('sample', 'surf', 'thumb-vertical', '--ax-scrollbar-shown-opacity', 1500);
+                await t.sleep(60);
                 await t.park();
                 rows = await fadingOut;
                 const outFade = linearFade(rows, false, 400);
@@ -3928,6 +3934,109 @@ const checks: Check[] = [
             }
         },
     },
+    {
+        name: 'alignment: the thumb and the buttons paint the same columns at DPR 1.25 and 1.5, without and with snap, at fractional places',
+        run: async (t) => {
+            // Solid red thumb and blue buttons: their painted columns can be told apart from the screenshot.
+            const css = `ax-scroll-view, ax-scrollbar { --ax-scrollbar-fade-in-duration: 0s; --ax-scrollbar-state-smoothing: 0s; --ax-scrollbar-fade-smoothing: 0s; --ax-scrollbar-slide-distance: 0px; }
+            ax-scroll-view::part(thumb), ax-scrollbar::part(thumb) { --ax-scrollbar-part-color: rgb(255, 0, 0); --ax-scrollbar-part-border-color: rgba(0, 0, 0, 0); }
+            ax-scroll-view::part(button), ax-scrollbar::part(button) { --ax-scrollbar-part-color: rgb(0, 0, 255); --ax-scrollbar-part-border-color: rgba(0, 0, 0, 0); --ax-scrollbar-part-glyph-color: rgba(0, 0, 0, 0); }`;
+            const failures: string[] = [];
+            for (const dpr of [1.25, 1.5]) {
+                const s = await t.scaled(dpr);
+                try {
+                    for (const snap of [false, true]) {
+                        // The page scrollbar (a fixed overlay at the edge of the window) and a scroll view at fractional places.
+                        for (const [left, top] of [[-1, -1], [10, 20], [10.3, 20.4], [10.6, 20.7], [10.85, 20.15]]) {
+                            const id = left < 0 ? 'page' : 'al';
+                            const attrs = { indicator: 'pinned', vertical: 'always', hide: 'track', ...(snap ? { snap: '' } : {}) };
+                            if (left < 0) await s.call('makePage', css, attrs);
+                            else {
+                                await s.call('plainMake', 'al', css, attrs, '<div style="height: 2000px"></div>');
+                                await s.call('plainPlace', 'al', left, top);
+                            }
+                            await s.call('settle');
+                            await Bun.sleep(300);
+                            const thumb: Box = await s.call('box', id, 'thumb-vertical');
+                            const button: Box = await s.call('box', id, 'button-start-vertical');
+                            const shot: Buffer = await s.page.screenshot();
+                            const columns = (y: number): Promise<[number, number]> =>
+                                s.page.evaluate(
+                                    async ([b64, row, from, to]: [string, number, number, number]) => {
+                                        const img = await createImageBitmap(await (await fetch('data:image/png;base64,' + b64)).blob());
+                                        const canvas = new OffscreenCanvas(img.width, img.height);
+                                        const g = canvas.getContext('2d')!;
+                                        g.drawImage(img, 0, 0);
+                                        const px = g.getImageData(from, row, to - from, 1).data;
+                                        let first = -1;
+                                        let last = -1;
+                                        for (let i = 0; i < px.length; i += 4) {
+                                            if (px[i] > 235 && px[i + 1] > 235 && px[i + 2] > 235) continue;
+                                            if (first < 0) first = from + i / 4;
+                                            last = from + i / 4;
+                                        }
+                                        return [first, last] as [number, number];
+                                    },
+                                    [shot.toString('base64'), y, Math.floor((thumb.left - 4) * dpr), Math.ceil((thumb.right + 4) * dpr)],
+                                );
+                            const onThumb = await columns(Math.round((thumb.top + thumb.height / 2) * dpr));
+                            const onButton = await columns(Math.round((button.top + button.height / 2) * dpr));
+                            if (onThumb[0] !== onButton[0] || onThumb[1] !== onButton[1]) failures.push(`dpr ${dpr}${snap ? ' snap' : ''} ${id === 'page' ? 'page bar' : `at ${left},${top}`}: thumb ${onThumb}, button ${onButton}`);
+                            if (left < 0) await s.call('removePage');
+                            else await s.call('plainRemove', 'al');
+                        }
+                    }
+                } finally {
+                    await s.close();
+                }
+            }
+            expect(failures.length === 0, failures.join('; '));
+        },
+    },
+    {
+        name: 'idle is free: after the bars settle, 3 s without a frame callback or a timer; the page bar follows its document by observation',
+        run: async (t) => {
+            const s = await t.scaled(1);
+            try {
+                await Bun.sleep(2500);
+                // Counted from here: every frame callback (the page counts its requests) and every timer.
+                await s.page.evaluate(() => {
+                    const w = window as unknown as { __timers: number };
+                    w.__timers = 0;
+                    const st = window.setTimeout.bind(window);
+                    const si = window.setInterval.bind(window);
+                    window.setTimeout = ((...a: Parameters<typeof setTimeout>) => (w.__timers++, st(...a))) as typeof setTimeout;
+                    window.setInterval = ((...a: Parameters<typeof setInterval>) => (w.__timers++, si(...a))) as typeof setInterval;
+                });
+                const framesBefore = await s.call<number>('requestedFrames');
+                await Bun.sleep(3000);
+                const frames = (await s.call<number>('requestedFrames')) - framesBefore;
+                const timers = await s.page.evaluate(() => (window as unknown as { __timers: number }).__timers);
+                expect(frames === 0, `${frames} frame callbacks were requested while nothing moved`);
+                expect(timers === 0, `${timers} timers were set while nothing moved (the page bar polls its document?)`);
+
+                // A child of the body that grows: the page bar sees it by observation, with no timer to ask.
+                await s.page.evaluate(() => {
+                    const grow = document.createElement('div');
+                    grow.id = 'grow';
+                    grow.style.cssText = 'position: relative; height: 100px; width: 10px';
+                    document.body.appendChild(grow);
+                });
+                await Bun.sleep(300);
+                const before: Box = await s.call('box', 'page', 'thumb-vertical');
+                await s.page.evaluate(() => {
+                    document.getElementById('grow')!.style.height = '20000px';
+                });
+                await Bun.sleep(500);
+                const after: Box = await s.call('box', 'page', 'thumb-vertical');
+                expect(after.height < before.height - 1, `the page thumb did not follow a growing document (${before.height} to ${after.height})`);
+                const quiet = await s.page.evaluate(() => (window as unknown as { __timers: number }).__timers);
+                expect(quiet === 0, `${quiet} timers were set while the document grew`);
+            } finally {
+                await s.close();
+            }
+        },
+    },
 ];
 
 // A scroll view of the accessibility checks, fixed in a corner and preceded and followed by a button,
@@ -4011,6 +4120,7 @@ async function runBrowser(name: string): Promise<{ passed: number; total: number
     }
     try {
         const page = await browser.newPage({ viewport: { width: 800, height: 600 }, deviceScaleFactor: 1 });
+        page.on('pageerror', (e: Error) => console.log(`PAGEERROR ${e.message.split('\n')[0]}`));
         await page.goto(`http://127.0.0.1:${server.port}/`);
         await page.waitForFunction(() => (window as any).axReady === true);
 
@@ -4021,6 +4131,9 @@ async function runBrowser(name: string): Promise<{ passed: number; total: number
         const ctx: Ctx = {
             touch: async () => {
                 throw new Error('touch context not ready');
+            },
+            scaled: async () => {
+                throw new Error('scaled context not ready');
             },
             page,
             call,
@@ -4036,6 +4149,18 @@ async function runBrowser(name: string): Promise<{ passed: number; total: number
                 await call('reset');
                 await call('settle');
             },
+        };
+
+        ctx.scaled = async (dpr) => {
+            const context = await browser.newContext({ viewport: { width: 800, height: 600 }, deviceScaleFactor: dpr });
+            const sp = await context.newPage();
+            await sp.goto(`http://127.0.0.1:${server.port}/`);
+            await sp.waitForFunction(() => (window as any).axReady === true);
+            return {
+                page: sp,
+                call: (fn: string, ...args: unknown[]) => sp.evaluate(([n, list]: [string, unknown[]]) => (window as any).axTest[n](...list), [fn, args]),
+                close: () => context.close(),
+            };
         };
 
         let touchCtx: TouchCtx | null = null;
@@ -4079,6 +4204,7 @@ async function runBrowser(name: string): Promise<{ passed: number; total: number
 
         let passed = 0;
         for (const check of checks) {
+            if (process.env.AX_ONLY && !check.name.includes(process.env.AX_ONLY)) continue;
             try {
                 await check.run(ctx);
                 passed++;

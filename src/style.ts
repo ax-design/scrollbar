@@ -14,7 +14,7 @@ const STRUCTURE = `
   .viewport::-webkit-scrollbar { display: none; width: 0; height: 0; }
 }
 .content { min-width: 100%; min-height: 100%; box-sizing: border-box; }
-.frame { position: absolute; left: 0; top: 0; }
+.frame { position: absolute; inset: 0; }
 .bar { position: absolute; display: flex; box-sizing: border-box;
        user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
 .bar.v { top: 0; right: 0; bottom: 0; flex-direction: column; }

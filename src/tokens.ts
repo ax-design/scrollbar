@@ -141,22 +141,26 @@ function positive(value: unknown, fallback: number): number {
     return typeof value === 'number' && isFinite(value) ? Math.max(0, value) : fallback;
 }
 
-// The host's behaviour tokens as plain numbers (ms and px), as of the last read().
+// The host's behaviour tokens as plain numbers (ms and px). They are read from the style when they are
+// needed after a change (invalidate()), at most once per change: a change only marks them stale.
 export class HostTokens {
-    scrollSmoothing = SMOOTH_TAU;
-    thumbSmoothing = FOLLOW_TAU;
-    idleDelay = 3000;
-    touchIdleDelay = 500;
-    cardDelay = 400;
-    repeatDelay = 250;
-    repeatInterval = 50;
-    line = 40;
-    hotzone: LengthPercentage = { px: 0, percent: 0 };
-    markerSpacing = 6;
-    expandDelay = 0;
-    contractDelay = 0;
-    markerReach = 12;
-    cardGap = 12;
+    private current = {
+        scrollSmoothing: SMOOTH_TAU,
+        thumbSmoothing: FOLLOW_TAU,
+        idleDelay: 3000,
+        touchIdleDelay: 500,
+        cardDelay: 400,
+        repeatDelay: 250,
+        repeatInterval: 50,
+        line: 40,
+        hotzone: { px: 0, percent: 0 } as LengthPercentage,
+        markerSpacing: 6,
+        expandDelay: 0,
+        contractDelay: 0,
+        markerReach: 12,
+        cardGap: 12,
+    };
+    private stale = true;
     private readonly binding: StyleBinding;
 
     constructor(host: HTMLElement, root: ShadowRoot) {
@@ -172,29 +176,61 @@ export class HostTokens {
         this.binding.unobserve();
     }
 
+    // The values are read again the next time one is needed.
+    invalidate(): void {
+        this.stale = true;
+    }
+
+    get isStale(): boolean {
+        return this.stale;
+    }
+
+    get scrollSmoothing(): number { return this.fresh().scrollSmoothing; }
+    get thumbSmoothing(): number { return this.fresh().thumbSmoothing; }
+    get idleDelay(): number { return this.fresh().idleDelay; }
+    get touchIdleDelay(): number { return this.fresh().touchIdleDelay; }
+    get cardDelay(): number { return this.fresh().cardDelay; }
+    get repeatDelay(): number { return this.fresh().repeatDelay; }
+    get repeatInterval(): number { return this.fresh().repeatInterval; }
+    get line(): number { return this.fresh().line; }
+    get markerSpacing(): number { return this.fresh().markerSpacing; }
+    get expandDelay(): number { return this.fresh().expandDelay; }
+    get contractDelay(): number { return this.fresh().contractDelay; }
+    get markerReach(): number { return this.fresh().markerReach; }
+    get cardGap(): number { return this.fresh().cardGap; }
+
+    private fresh(): HostTokens['current'] {
+        if (this.stale) this.read();
+        return this.current;
+    }
+
+    // Reads the style now: one query, whatever the number of tokens.
     read(): void {
+        this.stale = false;
         const b = this.binding;
         b.read();
-        this.scrollSmoothing = positive(b.get(SCROLL_SMOOTHING), SMOOTH_TAU);
-        this.thumbSmoothing = positive(b.get(THUMB_SMOOTHING), FOLLOW_TAU);
-        this.idleDelay = positive(b.get(IDLE_DELAY), 3000);
-        this.touchIdleDelay = positive(b.get(TOUCH_IDLE_DELAY), 500);
-        this.cardDelay = positive(b.get(CARD_DELAY), 400);
-        this.repeatDelay = positive(b.get(REPEAT_DELAY), 250);
+        const c = this.current;
+        c.scrollSmoothing = positive(b.get(SCROLL_SMOOTHING), SMOOTH_TAU);
+        c.thumbSmoothing = positive(b.get(THUMB_SMOOTHING), FOLLOW_TAU);
+        c.idleDelay = positive(b.get(IDLE_DELAY), 3000);
+        c.touchIdleDelay = positive(b.get(TOUCH_IDLE_DELAY), 500);
+        c.cardDelay = positive(b.get(CARD_DELAY), 400);
+        c.repeatDelay = positive(b.get(REPEAT_DELAY), 250);
         // A repeat every 0 ms would never let the page draw.
-        this.repeatInterval = Math.max(1, positive(b.get(REPEAT_INTERVAL), 50));
-        this.line = positive(b.get(LINE), 40);
+        c.repeatInterval = Math.max(1, positive(b.get(REPEAT_INTERVAL), 50));
+        c.line = positive(b.get(LINE), 40);
         const zone = b.get(HOTZONE) as LengthPercentage | null;
-        this.hotzone = zone && typeof zone === 'object' ? zone : { px: 0, percent: 0 };
-        this.markerSpacing = positive(b.get(MARKER_SPACING), 6);
-        this.expandDelay = positive(b.get(EXPAND_DELAY), 0);
-        this.contractDelay = positive(b.get(CONTRACT_DELAY), 0);
-        this.markerReach = positive(b.get(MARKER_REACH), 12);
-        this.cardGap = positive(b.get(CARD_GAP), 12);
+        c.hotzone = zone && typeof zone === 'object' ? zone : { px: 0, percent: 0 };
+        c.markerSpacing = positive(b.get(MARKER_SPACING), 6);
+        c.expandDelay = positive(b.get(EXPAND_DELAY), 0);
+        c.contractDelay = positive(b.get(CONTRACT_DELAY), 0);
+        c.markerReach = positive(b.get(MARKER_REACH), 12);
+        c.cardGap = positive(b.get(CARD_GAP), 12);
     }
 
     // The hot zone in px for a bar of this thickness.
     hotzoneFor(thickness: number): number {
-        return Math.max(0, this.hotzone.px + (this.hotzone.percent / 100) * thickness);
+        const zone = this.fresh().hotzone;
+        return Math.max(0, zone.px + (zone.percent / 100) * thickness);
     }
 }

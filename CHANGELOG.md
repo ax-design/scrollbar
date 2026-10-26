@@ -2,6 +2,16 @@
 
 All notable changes to this package are documented in this file.
 
+## 0.4.0
+
+- One frame scheduler. The scrollbars no longer run a frame loop of their own: each is a client of the scheduler of `@ax-design/surface` (0.4.2), with its priority (a press on a bar, a pointer at one, a scroll the user watches, the rest), and the animation of a part's look steps in the part's own surface frame. Nothing in the package asks for an animation frame by itself. Every client of a frame reads before any of them writes, so twenty scroll views mounting or scrolling together lay out once, not once each.
+- Changes are coalesced. An attribute, a token, a mutation or a resize only marks what is dirty; the styles and the layout are read once per frame, and the writes come after the reads. A host token is read once per change, not once per use.
+- Idle is free. With nothing moving there is no frame callback, no timer and no style read, also on the page: the scroll size of the document is observed (the resize observer on the root, the body and the children of the body, the mutation observer, loads and fonts) and no longer compared on a timer. A rule that changes the scroll size where nothing is observed is seen in the first frame that runs afterwards (a scroll, a pointer at the bar), or with `refresh()`.
+- The indicator's idle delay is a deadline checked by one timer, not a timer set again by every scroll.
+- Faster scrolling on a page of many scroll views: the thumb and the markers move with 2D transforms instead of 3D ones (which gave each its own compositor layer and layerized the page on every scroll frame), and the parts share one visibility watch on their element.
+- Fix: at a fractional device pixel ratio (1.25, 1.5) the thumb of the page scrollbar started one device pixel before the button next to it unless `snap` was set. The thumb is no longer a compositor layer of its own, so it is painted on the same columns as the buttons with and without `snap`.
+- `bench/` holds a benchmark page of 20 scroll views and a CDP driver (`bun run bench`): frame callbacks and timers at idle, scripting while the views mount, and main-thread time per frame while one scrolls.
+
 ## 0.3.1
 
 - Fix: the bars of `<ax-scrollbar>` follow the size of the document and the places of the markers when the content changes without a scroll or a resize of the window (a client-side navigation, a style sheet, a node added). A node added or removed lays the bars out on the next frame, and the document's scroll size is compared every 100ms.

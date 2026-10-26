@@ -185,6 +185,11 @@ const axTest = {
         });
     },
 
+    // The animation frames requested so far.
+    requestedFrames(): number {
+        return requested;
+    },
+
     // The animation frames requested in the next ms milliseconds.
     framesIn(ms: number): Promise<number> {
         const start = requested;
@@ -270,6 +275,36 @@ const axTest = {
         shadow.appendChild(view);
         document.body.appendChild(host);
         plains.set(id, { host, view });
+    },
+
+    // Replaces the page scrollbar by one of the given attributes, with a style sheet in the document.
+    makePage(css: string, attrs: Record<string, string>): void {
+        document.getElementById('page')?.remove();
+        const style = document.createElement('style');
+        style.setAttribute('data-page', '');
+        style.textContent = css;
+        document.head.appendChild(style);
+        const bar = document.createElement('ax-scrollbar');
+        bar.id = 'page';
+        for (const name of Object.keys(attrs)) bar.setAttribute(name, attrs[name]);
+        document.body.appendChild(bar);
+    },
+
+    removePage(): void {
+        document.getElementById('page')?.remove();
+        document.querySelectorAll('style[data-page]').forEach((n) => n.remove());
+        // The other helpers expect a page scrollbar: an unstyled one stands in.
+        const bar = document.createElement('ax-scrollbar');
+        bar.id = 'page';
+        document.body.appendChild(bar);
+    },
+
+    // Puts the host of a scroller made by plainMake at a place, in CSS px (fractions allowed).
+    plainPlace(id: string, left: number, top: number): void {
+        const plain = plains.get(id);
+        if (!plain) throw new Error(`no plain scroller ${id}`);
+        plain.host.style.left = `${left}px`;
+        plain.host.style.top = `${top}px`;
     },
 
     // Defines the Luna kit (once) and returns the stylesheet of its colour schemes, as text.

@@ -67,12 +67,19 @@ export class MarkerSet {
         this.list.splice(0, this.list.length, ...next);
     }
 
-    // Reads each marker's position in the content. Sorts the list, so the order is the content order.
-    measure(target: ScrollTarget): void {
-        for (const placed of this.list) {
-            const { element, position } = placed.marker;
-            placed.contentPosition = element ? target.contentOffset(element, this.axis) : (position ?? 0);
+    // Reads where each marker is in the content: reads only, so a frame can measure the markers of
+    // every scroller before any of them writes.
+    static measure(target: ScrollTarget, markers: ScrollMarker[]): Map<ScrollMarker, number> {
+        const positions = new Map<ScrollMarker, number>();
+        for (const marker of markers) {
+            positions.set(marker, marker.element ? target.contentOffset(marker.element, marker.axis ?? 'vertical') : (marker.position ?? 0));
         }
+        return positions;
+    }
+
+    // Takes the positions read by measure(). Sorts the list, so the order is the content order.
+    apply(positions: Map<ScrollMarker, number>): void {
+        for (const placed of this.list) placed.contentPosition = positions.get(placed.marker) ?? placed.contentPosition;
         this.list.sort((a, b) => a.contentPosition - b.contentPosition);
     }
 
@@ -124,10 +131,7 @@ export class MarkerSet {
             const at = origin === null ? shown : snap(shown, origin, dpr);
             // Snapped markers use 2D translates, like the thumb (see Bar.render).
             const along = this.axis === 'vertical' ? at : physical(at, 0, track, rtl);
-            const transform =
-                origin !== null
-                    ? this.axis === 'vertical' ? `translate(0, ${along}px)` : `translate(${along}px, 0)`
-                    : this.axis === 'vertical' ? `translate3d(0, ${along}px, 0)` : `translate3d(${along}px, 0, 0)`;
+            const transform = this.axis === 'vertical' ? `translate(0, ${along}px)` : `translate(${along}px, 0)`;
             // Writes only on change: a slot that does not move costs no style recalculation.
             if (this.transforms.get(placed) === transform) continue;
             this.transforms.set(placed, transform);

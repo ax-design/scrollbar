@@ -4,7 +4,7 @@
 // nothing and animate nothing. A look is a subclass (the default one is in default.ts, a kit's is
 // its own): it brings its layers, its look inputs and its own shadow style sheet, which reads the
 // state as `:host([hover])` and so on.
-import { AxSurface, appearance } from '@ax-design/surface';
+import { AxSurface, appearance, services } from '@ax-design/surface';
 import type { Quality, Values } from '@ax-design/surface';
 import { CORE_SCHEMA } from '@ax-design/surface/schema';
 import * as T from '../tokens.js';
@@ -121,8 +121,6 @@ export abstract class AxScrollbarPart extends AxSurface {
     private smoothing: Smoothing = { state: 0, fade: 0, slide: 0, fadeIn: 0, fadeOut: 0 };
     // The look properties last written, so a value at rest is not written again.
     private written: { [name: string]: string } = {};
-    // The frame of a motion without colour (see stepLook).
-    private tickId = 0;
 
     constructor() {
         super();
@@ -161,6 +159,12 @@ export abstract class AxScrollbarPart extends AxSurface {
         this.refresh();
     }
 
+    // The parts lie in the box of the scrollbar's element: one watch of its visibility serves them all.
+    protected visibilityTarget(): Element {
+        const root = this.getRootNode() as ShadowRoot;
+        return root.host || this;
+    }
+
     // For subclasses that react to a state change themselves.
     protected stateChanged(_prev: PartState, _next: PartState): void {}
 
@@ -182,8 +186,30 @@ export abstract class AxScrollbarPart extends AxSurface {
         return null;
     }
 
+    // Counts what changes the styles the part reads (its state, its tokens, a refresh) and the count
+    // its last read saw. The scrollbar writes the state of a part in its own write phase, which can
+    // come after the part's read in the same frame: that read is then stale, and the part reads
+    // again in the next frame instead of stepping toward values of the state it no longer has.
+    private changes = 0;
+    private seenChanges = 0;
+
+    refresh(): void {
+        this.changes++;
+        super.refresh();
+    }
+
+    read(): void {
+        this.seenChanges = this.changes;
+        super.read();
+    }
+
     // Phase 3 of the surface frame: one step of the look toward the state's values, then the draw.
     write(now: number, quality: Quality): void {
+        if (this.seenChanges !== this.changes) {
+            super.write(now, quality);
+            this.refresh();
+            return;
+        }
         // The look steps first: a look that landed on its colours this frame (an instant one, or
         // the last step of a motion) is read back and drawn in this same frame, so a state change
         // paints in the frame that reflects it, not one frame later.
@@ -195,18 +221,16 @@ export abstract class AxScrollbarPart extends AxSurface {
 
     disconnectedCallback(): void {
         super.disconnectedCallback();
-        if (this.tickId) cancelAnimationFrame(this.tickId);
-        this.tickId = 0;
         this.lastStep = 0;
     }
 
-    // One step of the look, written as custom properties on the part. The colours are drawn by
-    // the layers, which see them only after the surface has read the styles again: a colour that
-    // changed asks for a surface frame (refresh), which reads them and steps on. The opacity, the
-    // slide and the size are CSS (the size reaches the surface as a resize), so a motion of those
-    // alone steps on frames of its own without reading the part's styles: a fade of the bars
-    // costs no style reads.
-    private stepLook(now: number, inFrame = true): boolean {
+    // One step of the look, written as custom properties on the part, in the write phase of a frame
+    // of the scheduler. The colours are drawn by the layers, which see them only after the surface
+    // has read the styles again: a colour that changed asks for a surface frame (refresh), which
+    // reads them and steps on. The opacity, the slide and the size are CSS (the size reaches the
+    // surface as a resize), so a motion of those alone asks the scheduler for a frame without
+    // reading the part's styles: a fade of the bars costs no style reads.
+    private stepLook(now: number): boolean {
         const values = this.currentValues;
         if (!values) return false;
         const target = this.look(this.state, values);
@@ -222,20 +246,10 @@ export abstract class AxScrollbarPart extends AxSurface {
             this.style.setProperty(name, value);
             if (COLOR_PROPERTIES.indexOf(name) >= 0) colors = true;
         }
-        // A motion, or a step outside a surface frame (nothing would draw it): ask for a frame.
-        if (colors && (moving || !inFrame)) return true;
-        if (colors) {
-            // Settled: read the colours back now (one style recalculation, only when a colour
-            // changed) so the layers draw them in this frame. Nothing is drawn yet this frame.
-            this.invalidateStyle();
-            this.read();
-            this.compute(now);
-        } else if (moving && !this.tickId) {
-            this.tickId = requestAnimationFrame((time) => {
-                this.tickId = 0;
-                if (this.isConnected && this.stepLook(time, false)) this.refresh();
-            });
-        }
+        // The colours are drawn from the next frame's read, which every part of the page does together
+        // (a read inside this write would be one style recalculation per part).
+        if (colors) return true;
+        if (moving) services().scheduler.request(this);
         return false;
     }
 }

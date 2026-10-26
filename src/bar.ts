@@ -72,14 +72,18 @@ export class Bar {
         this.root.el.appendChild(this.buttonEnd.el);
     }
 
-    setDisplayed(on: boolean): void {
-        writeStyle(this.root.el, 'display', on ? '' : 'none');
+    setDisplayed(on: boolean): boolean {
+        return writeStyle(this.root.el, 'display', on ? '' : 'none');
     }
 
     // Hidden parts are there but not displayed: they take no room and no input, and showing them
     // again is cheap. The track hides its pieces with it.
-    setHidden(hidden: BarHidden): void {
-        const display = (piece: Piece | HTMLElement, off: boolean) => writeStyle(piece instanceof Piece ? piece.el : piece, 'display', off ? 'none' : '');
+    // Returns whether anything changed.
+    setHidden(hidden: BarHidden): boolean {
+        let changed = false;
+        const display = (piece: Piece | HTMLElement, off: boolean) => {
+            if (writeStyle(piece instanceof Piece ? piece.el : piece, 'display', off ? 'none' : '')) changed = true;
+        };
         display(this.buttonStart, hidden.buttons);
         display(this.buttonEnd, hidden.buttons);
         display(this.thumb, hidden.thumb);
@@ -87,6 +91,7 @@ export class Bar {
         display(this.clipStart, hidden.track || hidden.pieces);
         display(this.clipEnd, hidden.track || hidden.pieces);
         display(this.markers, hidden.markers);
+        return changed;
     }
 
     // Thickness across the axis: the width of a vertical bar, the height of a horizontal one.
@@ -103,9 +108,11 @@ export class Bar {
         return parseFloat(this.axis === 'vertical' ? style.minHeight : style.minWidth) || 0;
     }
 
-    // `flat`: 2D translates. A 3D one gives the part its own compositor layer, which is resampled
-    // when it sits on a fractional position and blurs a theme drawn pixel by pixel.
-    render(layout: AxisLayout, rtl: boolean, flat = false): void {
+    // `exact`: snapped values, written exactly. The thumb moves with a 2D translate: a 3D one gives it a
+    // compositor layer of its own, and a page of scrollbars (every marker too) is then layerized again on
+    // every scroll frame; a layer also rasters at its own fractional offset, which is what made a
+    // thumb start a device pixel before the button beside it.
+    render(layout: AxisLayout, rtl: boolean, exact = false): void {
         const vertical = this.axis === 'vertical';
         const track = layout.track;
         const length = vertical ? 'height' : 'width';
@@ -113,10 +120,10 @@ export class Bar {
         const start = (at: number, size: number): number => (vertical ? at : physical(at, size, track, rtl));
         // Snapped values must be written exactly: rounding them to 1/100 px moves them off the grid
         // again when the track starts on a fractional position.
-        const len = (n: number): string => (flat ? `${n}px` : px(n));
+        const len = (n: number): string => (exact ? `${n}px` : px(n));
         const move = (edge: number): string => {
-            if (flat) return vertical ? `translate(0, ${edge}px)` : `translate(${edge}px, 0)`;
-            return vertical ? `translate3d(0, ${px(edge)}, 0)` : `translate3d(${px(edge)}, 0, 0)`;
+            const at = exact ? `${edge}px` : px(edge);
+            return vertical ? `translate(0, ${at})` : `translate(${at}, 0)`;
         };
 
         const thumbStart = start(layout.thumbOffset, layout.thumbLength);

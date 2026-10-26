@@ -1,3 +1,5 @@
+import { PRIORITY_IDLE, PRIORITY_POINTER, PRIORITY_PRESSED, services } from '@ax-design/surface';
+import type { FrameClient, Quality } from '@ax-design/surface';
 import { Bar } from './bar.js';
 import type { BarState } from './bar.js';
 import { CardLayer } from './cards.js';
@@ -31,13 +33,49 @@ export interface ControllerOptions {
 }
 
 type Metrics = Omit<AxisMetrics, 'position'>;
-// How often the page's bars compare the size of the document with the one they laid out.
-const SIZE_POLL = 100;
+
+// What the read phase of a frame found, for its compute and write phases.
+interface LayoutRead {
+    rtl: boolean;
+    // Per axis: the room the content needs, and whether the bar is shown for it.
+    displayed: Record<Axis, boolean>;
+    // Per axis: the thickness of the bar as laid out now; null for a bar that is not shown now.
+    thickness: Record<Axis, number | null>;
+    // Per axis: the metrics of the bar as laid out now (null for a bar that is not shown now) and the
+    // screen position of the start of its track.
+    metrics: Record<Axis, Metrics | null>;
+    origin: Record<Axis, number>;
+}
+
+interface FrameRead {
+    dt: number;
+    rtl: boolean;
+    snapping: boolean;
+    tau: number;
+    position: Record<Axis, number>;
+    // The markers to build the parts of, when the list changed.
+    list: ScrollMarker[] | null;
+    // Where the markers are in the content, when they were measured (a new list, or elements that may have moved).
+    positions: Map<ScrollMarker, number> | null;
+    layout: LayoutRead | null;
+    // The bar and the track of an open card, as laid out now.
+    card: { axis: Axis; barRect: DOMRect; area: DOMRect } | null;
+    // Computed: the thumb of each axis as it is and as it is drawn (null for a bar that is not drawn).
+    exact: Record<Axis, AxisLayout | null>;
+    drawn: Record<Axis, AxisLayout | null>;
+    moving: boolean;
+}
+
+// Frame priorities between the pointer's (PRIORITY_POINTER) and an idle surface's: a scroll the
+// user is watching ranks above a state that settles on its own.
+const PRIORITY_SCROLL = 1e6;
 
 type Indicator = 'none' | 'mouse' | 'touch';
 
 interface AxisState {
     displayed: boolean;
+    // The bar is laid out (not display none): its thickness and track can be read.
+    laidOut: boolean;
     // Screen position of the logical start of the track, for the `snap` attribute.
     origin: number;
     metrics: Metrics | null;   // read after the writes of a layout pass
@@ -58,6 +96,9 @@ interface AxisState {
     expandedWant: boolean;
     expandTimer: number;
 }
+
+// The children of the body that the page's bars observe for their size, at most.
+const MAX_BODY_CHILDREN = 256;
 
 const PASSIVE: AddEventListenerOptions = { passive: true };
 // Presses are routed before the content sees them, and a press in the hot zone is taken from it.
@@ -92,6 +133,7 @@ const isScroller = (node: EventTarget): boolean => {
 
 const newState = (): AxisState => ({
     displayed: false,
+    laidOut: true,
     origin: 0,
     metrics: null,
     layout: null,
@@ -170,8 +212,10 @@ function clear(el: HTMLElement): void {
 }
 
 // The scrollbars of one scroller (or of the page): the bars, the markers and the cards, the
-// observers and the frame loop that keeps them in step with the scroll position.
-export class ScrollbarController implements InputHost {
+// observers, and the frame client that keeps them in step with the scroll position. It has no
+// loop of its own: it asks the scheduler of Surface for a frame (request()) and does its reads,
+// its math and its writes in the three phases the scheduler gives it, with every surface of the page.
+export class ScrollbarController implements InputHost, FrameClient {
     private readonly options: ControllerOptions;
     private readonly host: HTMLElement;
     private readonly target: ScrollTarget;
@@ -203,8 +247,12 @@ export class ScrollbarController implements InputHost {
     private card: { axis: Axis; id: string } | null = null;
 
     private connected = false;
-    private frameId = 0;
+    // The frame being run: what its read phase found, null while the controller is not in a frame.
+    private frame: FrameRead | null = null;
     private layoutDirty = false;
+    // A change of an attribute, a token, a rule: the tokens and what they decide are read again in the next frame.
+    private refreshDirty = false;
+    private refreshWrites = false;
     private scrollDirty = false;
     private markersDirty = false;
     private listDirty = false;
@@ -213,6 +261,10 @@ export class ScrollbarController implements InputHost {
     private matched: ScrollMarker[] = [];
     private stateDirty = false;
     private placeDirty = false;
+    // Something is on its way (a thumb or a marker that follows, a glide): the next frame is wanted.
+    private moving = false;
+    // The client and scroll sizes of each axis at the last layout read.
+    private seen: Record<Axis, { client: number; size: number } | null> = { vertical: null, horizontal: null };
     // Time of the last frame while something moves, 0 when nothing did.
     private lastTime = 0;
 
@@ -222,6 +274,9 @@ export class ScrollbarController implements InputHost {
     private lastShown: 'mouse' | 'touch' = 'mouse';
     private hideList = new HideList(DEFAULT_HIDE);
     private indicatorTimer = 0;
+    // When the indicator ends if nothing moves, and when the timer that waits for it fires.
+    private indicatorDeadline = 0;
+    private indicatorTimerAt = 0;
     private cardTimer = 0;
     // Reduced motion: the open card goes away by itself after the touch idle delay.
     private dismissTimer = 0;
@@ -238,12 +293,11 @@ export class ScrollbarController implements InputHost {
     private resizeObserver: ResizeObserver | null = null;
     private attrObserver: MutationObserver | null = null;
     private selectorObserver: MutationObserver | null = null;
-    // The page: nothing reports a change of its scroll size that no element's own size shows (a
-    // content box that keeps its size while what it holds grows, a style sheet that moves the
-    // markers), so a change of the document's content is a layout pass, and the size is read on a timer.
+    // The page: its scroll size changes with its content, which the resize observer sees through the
+    // sizes of the root, the body and the children of the body, and the mutation observer through its nodes
+    // (see watchDocument). Nothing is polled.
     private documentObserver: MutationObserver | null = null;
-    private sizeTimer = 0;
-    private sizeSeen = '';
+    private bodyChildren = new Set<Element>();
 
     constructor(options: ControllerOptions) {
         this.options = options;
@@ -333,8 +387,8 @@ export class ScrollbarController implements InputHost {
         if (this.kitWait) this.kitWait();
         this.kitWait = null;
         const { target } = this;
-        cancelAnimationFrame(this.frameId);
-        this.frameId = 0;
+        services().scheduler.cancel(this);
+        this.frame = null;
         this.lastTime = 0;
         this.glide.stop();
         clearTimeout(this.indicatorTimer);
@@ -371,8 +425,8 @@ export class ScrollbarController implements InputHost {
         this.selectorObserver = null;
         if (this.documentObserver) this.documentObserver.disconnect();
         this.documentObserver = null;
-        clearTimeout(this.sizeTimer);
-        this.sizeTimer = 0;
+        this.bodyChildren.clear();
+        if (this.target.isDocument) this.unwatchLoads();
 
         // Hover and press tokens would otherwise stay on the parts until the next connect.
         for (const axis of AXES) {
@@ -402,19 +456,34 @@ export class ScrollbarController implements InputHost {
         if (wasConnected) this.connect();
     }
 
+    // A change of an attribute or a token, or of something around the element that the observers do
+    // not see. It only marks: the tokens are read at most once, when something needs them, and the
+    // rest in the next frame.
     refresh(): void {
-        // Now rather than on the next frame: a press right after must already glide with them.
-        this.tokens.read();
+        this.tokens.invalidate();
+        this.refreshDirty = true;
+        this.request();
+    }
+
+    // What refresh() marked, in the read phase of the next frame: what is only state. The writes it
+    // needs (applyRefreshWrites) wait for the write phase, so no controller writes before the reads
+    // of the others.
+    private applyRefresh(): void {
+        this.refreshDirty = false;
+        this.refreshWrites = true;
         this.syncHide();
-        this.syncLayers();
         this.syncPinned();
-        // A change the parts cannot see (an attribute or a class around the element).
-        for (const piece of this.pieces()) if (isPart(piece.el)) piece.el.refresh();
         this.layoutDirty = true;
         this.listDirty = true;
         this.syncSelectorObserver();
         this.syncSuspended();
-        this.request();
+    }
+
+    private applyRefreshWrites(): void {
+        this.refreshWrites = false;
+        this.syncLayers();
+        // A change the parts cannot see (an attribute or a class around the element).
+        for (const piece of this.pieces()) if (isPart(piece.el)) piece.el.refresh();
     }
 
     // `suspended`: the bars fade out as when the indicator ends, take no input, and the card
@@ -735,10 +804,12 @@ export class ScrollbarController implements InputHost {
 
     // The parts the look leaves out now go: a hovered marker and an open card of a hidden kind, so
     // that nothing of them stays behind.
-    private applyHide(): void {
+    // Returns whether a part came or went, which changes the room of the track.
+    private applyHide(): boolean {
         const markers = this.hidden('marker');
+        let changed = false;
         for (const axis of AXES) {
-            this.bars[axis].setHidden({ thumb: this.hidden('thumb'), buttons: this.hidden('button'), track: this.hidden('track'), pieces: this.hidden('track-piece'), markers });
+            if (this.bars[axis].setHidden({ thumb: this.hidden('thumb'), buttons: this.hidden('button'), track: this.hidden('track'), pieces: this.hidden('track-piece'), markers })) changed = true;
             if (markers) {
                 this.sets[axis].setHover(null);
                 this.sets[axis].setPressed(null);
@@ -749,6 +820,7 @@ export class ScrollbarController implements InputHost {
             this.cards.hide(false);
             this.card = null;
         }
+        return changed;
     }
 
     // Every piece that is a part element of the bars, the markers and the corner.
@@ -778,27 +850,49 @@ export class ScrollbarController implements InputHost {
         return list;
     }
 
-    // The page's bars follow the content of the document: a node added or removed is a layout pass
-    // on the next frame, and the scroll size and the client size are compared every SIZE_POLL ms.
+    // The page's bars follow the content of the document, by observation (nothing is polled, so an
+    // idle page costs nothing): the resize observer sees the root, the body and the children of the
+    // body (which is where a page's content grows), the mutation observer a node added or removed,
+    // and loads (images, fonts) that change what the content needs. Each only marks a layout pass.
     private watchDocument(): void {
-        this.documentObserver = new MutationObserver(this.onLayoutChange);
+        this.documentObserver = new MutationObserver(this.onDocumentMutation);
         this.documentObserver.observe(document.documentElement, { childList: true, subtree: true });
-        this.sizeSeen = this.documentSize();
-        const poll = (): void => {
-            const size = this.documentSize();
-            if (size !== this.sizeSeen) {
-                this.sizeSeen = size;
-                this.onLayoutChange();
-            }
-            this.sizeTimer = window.setTimeout(poll, SIZE_POLL);
-        };
-        this.sizeTimer = window.setTimeout(poll, SIZE_POLL);
+        this.syncBodyChildren();
+        document.addEventListener('load', this.onLayoutChange, CAPTURE_PASSIVE);
+        const fonts = document.fonts as FontFaceSet | undefined;
+        if (fonts && fonts.addEventListener) fonts.addEventListener('loadingdone', this.onLayoutChange);
     }
 
-    private documentSize(): string {
-        const t = this.target;
-        return `${t.size('vertical')} ${t.size('horizontal')} ${t.client('vertical')} ${t.client('horizontal')}`;
+    private unwatchLoads(): void {
+        document.removeEventListener('load', this.onLayoutChange, CAPTURE_PASSIVE);
+        const fonts = document.fonts as FontFaceSet | undefined;
+        if (fonts && fonts.removeEventListener) fonts.removeEventListener('loadingdone', this.onLayoutChange);
     }
+
+    // The children of the body are observed for their size, as they come and go.
+    private syncBodyChildren(): void {
+        const observer = this.resizeObserver;
+        const body = document.body;
+        if (!observer || !body) return;
+        const next = new Set<Element>();
+        for (let i = 0; i < body.children.length && next.size < MAX_BODY_CHILDREN; i++) {
+            const child = body.children[i];
+            if (child !== this.host) next.add(child);
+        }
+        this.bodyChildren.forEach((el) => {
+            if (!next.has(el)) observer.unobserve(el);
+        });
+        next.forEach((el) => {
+            if (!this.bodyChildren.has(el)) observer.observe(el);
+        });
+        this.bodyChildren = next;
+    }
+
+    private readonly onDocumentMutation = (records: MutationRecord[]): void => {
+        // Our own host is in the document: its changes (the states, a marker part) are not the content's.
+        if (records.some((r) => r.target === document.body)) this.syncBodyChildren();
+        this.onLayoutChange();
+    };
 
     private syncSelectorObserver(): void {
         const observer = this.selectorObserver;
@@ -846,19 +940,36 @@ export class ScrollbarController implements InputHost {
         return now.length !== was.length || now.some((m, i) => m.element !== was[i].element || m.id !== was[i].id || m.label !== was[i].label);
     }
 
-    // ---- Frame loop (6.1) ------------------------------------------------------------------
+    // ---- Frame client (6.1) ----------------------------------------------------------------
+    //
+    // The controller is a client of the scheduler of Surface (the one every surface of the page runs
+    // in): request() asks for a frame and the scheduler calls read, compute and write, in that order,
+    // for every client that asked, so no client reads after another one has written. Anything that
+    // changes (an attribute, a token, a scroll, a resize, a mutation) only marks a dirty flag and asks
+    // for a frame; the frame reads once and writes after. With nothing marked there is no frame.
 
     private request(): void {
         this.stateDirty = true;
-        if (this.connected && !this.frameId) this.frameId = requestAnimationFrame((time) => this.runFrame(time));
+        if (this.connected) services().scheduler.request(this);
     }
 
-    private runFrame(time: number): void {
-        this.frameId = 0;
+    // Surface's priorities: a press on a bar is first, then a pointer at one, then a scroll that is
+    // on the way (the glide, the thumb following), then whatever only has to settle.
+    priority(): number {
+        if (AXES.some((axis) => this.states[axis].pressed || this.states[axis].dragging)) return PRIORITY_PRESSED;
+        if (AXES.some((axis) => this.states[axis].hover || this.states[axis].near)) return PRIORITY_POINTER;
+        if (this.moving || this.scrollDirty || this.glide.running) return PRIORITY_SCROLL;
+        return PRIORITY_IDLE;
+    }
+
+    // Phase 1: everything the frame needs from the DOM, read before anything of the page is written.
+    read(now: number): void {
+        this.frame = null;
         if (!this.connected) return;
-        const dt = this.lastTime ? Math.min(MAX_FRAME, time - this.lastTime) : FIRST_FRAME;
-        this.lastTime = time;
-        // The glide writes first, so this frame draws where it went.
+        const dt = this.lastTime ? Math.min(MAX_FRAME, now - this.lastTime) : FIRST_FRAME;
+        this.lastTime = now;
+        if (this.refreshDirty) this.applyRefresh();
+        // The glide writes first, so this frame draws where it went (a scroll offset is not a layout).
         if (this.glide.running) {
             this.glide.step(dt);
             this.scrollDirty = true;
@@ -872,52 +983,112 @@ export class ScrollbarController implements InputHost {
             this.lastTime = 0;
             return;
         }
+        // A scroll size that is not the one the bars were laid out for (content that grew where no
+        // observer sees it, a rule that changed it) is a layout pass now, in the first frame that runs
+        // (a scroll, a pointer move), rather than a bar that is wrong until the next resize.
+        if (!this.layoutDirty && this.sizeChanged()) this.layoutDirty = true;
 
-        if (this.listDirty) {
-            this.listDirty = false;
-            this.collectMarkers();
-            this.markersDirty = true;
+        const layout = this.layoutDirty ? this.readLayout() : null;
+        const target = this.target;
+        // The markers are measured for a new list, for a layout pass and when asked; hidden ones are
+        // not measured: the layout pass that shows them again measures them.
+        const markersWanted = !this.hidden('marker');
+        let list: ScrollMarker[] | null = null;
+        if (this.listDirty) list = this.readMarkerList();
+        let positions: Map<ScrollMarker, number> | null = null;
+        if (markersWanted && (list || this.markersDirty || layout)) {
+            const markers = list || this.currentMarkers();
+            positions = MarkerSet.measure(target, markers);
         }
-        // The layout pass writes before the markers are measured.
-        if (this.layoutDirty) {
-            this.layoutDirty = false;
-            this.layoutPass();
-            this.markersDirty = true;
-            this.placeDirty = true;
-        }
-        // Hidden markers are not measured nor placed: the layout pass that shows them again
-        // measures them.
-        const markers = !this.hidden('marker');
-        if (this.markersDirty && markers) {
-            this.markersDirty = false;
-            this.placeDirty = true;
-            for (const axis of AXES) this.sets[axis].measure(this.target);
-        }
+        const position: Record<Axis, number> = { vertical: 0, horizontal: 0 };
+        for (const axis of AXES) position[axis] = target.position(axis);
+        this.frame = {
+            dt,
+            rtl: target.rtl(),
+            snapping: this.snapping(),
+            tau: this.followTau(),
+            position,
+            list,
+            positions,
+            layout,
+            card: this.readCard(),
+            exact: { vertical: null, horizontal: null },
+            drawn: { vertical: null, horizontal: null },
+            moving: false,
+        };
+    }
 
-        const rtl = this.target.rtl();
-        const placing = this.placeDirty && markers;
-        if (markers) this.placeDirty = false;
-        const snapping = this.snapping();
-        const tau = this.followTau();
-        let moving = false;
-        let markersMoved = false;
+    // Phase 2: the math, no DOM: where each thumb is and where it is drawn.
+    compute(_now: number): void {
+        const frame = this.frame;
+        if (!frame) return;
+        const { layout, dt } = frame;
+        if (layout) {
+            for (const axis of AXES) {
+                const state = this.states[axis];
+                state.displayed = layout.displayed[axis];
+                state.metrics = layout.metrics[axis];
+                state.origin = layout.origin[axis];
+            }
+        }
         for (const axis of AXES) {
             const state = this.states[axis];
-            const layout = this.exactLayout(axis);
-            state.layout = layout && this.snapped(axis, layout);
-            if (!layout || !state.metrics) {
+            const exact = this.exactLayout(axis, frame.position[axis]);
+            state.layout = exact && this.snapped(axis, exact);
+            if (!exact || !state.metrics) {
                 state.shown = null;
+                frame.drawn[axis] = null;
                 continue;
             }
             // The drawn thumb follows the real one; hit tests keep using the real one.
-            state.shown = followThumb(state.dragging ? null : state.shown, layout.thumbOffset, layout.thumbLength, dt, tau);
-            if (state.shown.offset !== layout.thumbOffset || state.shown.length !== layout.thumbLength) moving = true;
-            const drawn = this.snapped(axis, { ...layout, thumbOffset: state.shown.offset, thumbLength: state.shown.length });
-            this.bars[axis].render(drawn, rtl, snapping);
+            state.shown = followThumb(state.dragging ? null : state.shown, exact.thumbOffset, exact.thumbLength, dt, frame.tau);
+            if (state.shown.offset !== exact.thumbOffset || state.shown.length !== exact.thumbLength) frame.moving = true;
+            frame.exact[axis] = exact;
+            frame.drawn[axis] = this.snapped(axis, { ...exact, thumbOffset: state.shown.offset, thumbLength: state.shown.length });
+        }
+    }
+
+    // Phase 3: the writes. The layout first (what is shown, the insets), then the markers' parts, then
+    // each bar and its markers, then the state of the parts and of the host.
+    write(_now: number, _quality: Quality): void {
+        const frame = this.frame;
+        this.frame = null;
+        if (!frame || !this.connected) return;
+        let remeasure = false;
+        if (this.refreshWrites) this.applyRefreshWrites();
+        if (frame.layout) {
+            this.layoutDirty = false;
+            remeasure = this.writeLayout(frame.layout);
+            this.placeDirty = true;
+        }
+        const markers = !this.hidden('marker');
+        if (frame.list) {
+            this.listDirty = false;
+            this.applyMarkerList(frame.list);
+        }
+        if (frame.positions) {
+            this.markersDirty = false;
+            this.placeDirty = true;
+            for (const axis of AXES) this.sets[axis].apply(frame.positions);
+        } else if (frame.layout || frame.list) {
+            // Not measured (hidden markers): the layout pass that shows them again measures them.
+            this.markersDirty = true;
+        }
+
+        const placing = this.placeDirty && markers;
+        if (markers) this.placeDirty = false;
+        let moving = frame.moving;
+        let markersMoved = false;
+        for (const axis of AXES) {
+            const state = this.states[axis];
+            const drawn = frame.drawn[axis];
+            const exact = frame.exact[axis];
+            if (!drawn || !exact || !state.metrics) continue;
+            this.bars[axis].render(drawn, frame.rtl, frame.snapping);
             const set = this.sets[axis];
-            if (placing) set.place(layout, state.metrics.client, this.alignment(), this.tokens.markerSpacing);
+            if (placing) set.place(exact, state.metrics.client, this.alignment(), this.tokens.markerSpacing);
             if (placing || (state.markersMoving && markers)) {
-                state.markersMoving = set.draw(dt, tau, layout.track, rtl, snapping ? state.origin : null);
+                state.markersMoving = set.draw(frame.dt, frame.tau, exact.track, frame.rtl, frame.snapping ? state.origin : null);
                 moving = moving || state.markersMoving;
                 markersMoved = true;
             }
@@ -935,12 +1106,31 @@ export class ScrollbarController implements InputHost {
         this.corner.flush();
         this.writeStates();
         // Markers keep their place on the track while scrolling; a card moves only with its marker.
-        if (markersMoved) this.updateCard();
+        if (markersMoved) this.updateCard(frame.card);
         this.scrollDirty = false;
         this.stateDirty = false;
-        // No idle frames: the loop goes on only while something is on its way.
-        if (moving || this.glide.running) this.request();
+        this.moving = moving;
+        // No idle frames: the client asks again only while something is on its way (or the layout
+        // it wrote has to be read again).
+        if (remeasure) this.layoutDirty = true;
+        if (moving || this.glide.running || remeasure) this.request();
         else this.lastTime = 0;
+    }
+
+    // The scroll size or the client size of an axis is not what the bars were laid out for.
+    private sizeChanged(): boolean {
+        return AXES.some((axis) => {
+            const seen = this.seen[axis];
+            return seen !== null && (seen.client !== this.target.client(axis) || seen.size !== this.target.size(axis));
+        });
+    }
+
+    // The bar and the track of the open card, which its place follows (see updateCard).
+    private readCard(): FrameRead['card'] {
+        const shown = this.card;
+        if (!shown || this.cards.shownId !== shown.id) return null;
+        const bar = this.bars[shown.axis];
+        return { axis: shown.axis, barRect: bar.root.el.getBoundingClientRect(), area: bar.area.getBoundingClientRect() };
     }
 
     private layoutFor(axis: Axis): AxisLayout | null {
@@ -949,10 +1139,10 @@ export class ScrollbarController implements InputHost {
     }
 
     // The layout at the live scroll position, before any snapping.
-    private exactLayout(axis: Axis): AxisLayout | null {
+    private exactLayout(axis: Axis, position: number = this.target.position(axis)): AxisLayout | null {
         const state = this.states[axis];
         if (!state.displayed || !state.metrics) return null;
-        return layoutAxis({ ...state.metrics, position: this.target.position(axis) });
+        return layoutAxis({ ...state.metrics, position });
     }
 
     private snapped(axis: Axis, layout: AxisLayout): AxisLayout {
@@ -1023,68 +1213,67 @@ export class ScrollbarController implements InputHost {
     }
 
     // ---- Layout pass (6.2) -----------------------------------------------------------------
+    //
+    // Split in two so that it fits the phases of a frame: readLayout() reads what the bars and the
+    // scroller are now; writeLayout() decides from it what is shown and where the bars sit, and
+    // says whether that changed what the reads depend on (a bar that is shown for the first time, an
+    // inset, a part that went), in which case the next frame reads again. A layout that does not
+    // change what it read (a resize that moved nothing of the bars) costs one frame, as every other.
 
-    private layoutPass(): void {
-        this.target.refreshDirection();
-        this.tokens.read();
-        this.decideDisplay();
-        this.writeBars();
-        // Read after the writes: the track of each bar depends on the inset of the other bar.
+    private readLayout(): LayoutRead {
+        const target = this.target;
+        target.refreshDirection();
+        const rtl = target.rtl();
+        const displayed: Record<Axis, boolean> = { vertical: false, horizontal: false };
+        const thickness: Record<Axis, number | null> = { vertical: null, horizontal: null };
+        const metrics: Record<Axis, Metrics | null> = { vertical: null, horizontal: null };
+        const origin: Record<Axis, number> = { vertical: 0, horizontal: 0 };
+        for (const axis of AXES) {
+            const client = target.client(axis);
+            const size = target.size(axis);
+            this.seen[axis] = { client, size };
+            const mode = this.mode(axis);
+            displayed[axis] = mode === 'always' || (mode === 'auto' && size - client > 0.5);
+            const bar = this.bars[axis];
+            // A bar that was not laid out (display none) has no thickness and no track to read yet.
+            if (!this.states[axis].laidOut) continue;
+            thickness[axis] = bar.thickness();
+            if (!displayed[axis]) continue;
+            metrics[axis] = { client, size, track: bar.trackLength(), minThumb: bar.minThumb() };
+            // A page scroll moves the area by whole pixels, so the fraction read here stays valid.
+            const area = bar.area.getBoundingClientRect();
+            origin[axis] = axis === 'vertical' ? area.top : rtl ? -area.right : area.left;
+        }
+        return { rtl, displayed, thickness, metrics, origin };
+    }
+
+    // Steps 1 to 3 of the layout: what is shown, then the bars, the corner and the host custom
+    // properties. The scroller is never made smaller: keeping content clear of the bars is the
+    // container's, with the two size properties. Returns whether a bar that the reads came from
+    // changed under them.
+    private writeLayout(read: LayoutRead): boolean {
+        let changed = false;
+        const { rtl } = read;
         for (const axis of AXES) {
             const state = this.states[axis];
-            if (!state.displayed) {
-                state.metrics = null;
-                continue;
-            }
-            state.metrics = {
-                client: this.target.client(axis),
-                size: this.target.size(axis),
-                track: this.bars[axis].trackLength(),
-                minThumb: this.bars[axis].minThumb(),
-            };
-            // A page scroll moves the area by whole pixels, so the fraction read here stays valid.
-            const area = this.bars[axis].area.getBoundingClientRect();
-            state.origin = axis === 'vertical' ? area.top : this.target.rtl() ? -area.right : area.left;
+            // A bar that shows for the first time was not read.
+            if (read.displayed[axis] && !state.laidOut) changed = true;
+            this.bars[axis].setDisplayed(read.displayed[axis]);
+            state.laidOut = read.displayed[axis];
         }
-        this.rects = { vertical: null, horizontal: null };
-    }
-
-    // Steps 1 to 3: read client and size of both axes, then decide and write what is shown.
-    private decideDisplay(): void {
-        const rtl = this.target.rtl();
-        const hostWidth = this.host.clientWidth;
-        const hostHeight = this.host.clientHeight;
-        for (const axis of AXES) {
-            const client = this.target.client(axis);
-            const size = this.target.size(axis);
-            const mode = this.mode(axis);
-            this.states[axis].displayed = mode === 'always' || (mode === 'auto' && size - client > 0.5);
-        }
-        for (const axis of AXES) this.bars[axis].setDisplayed(this.states[axis].displayed);
-        this.applyHide();
+        if (this.applyHide()) changed = true;
         this.frameEl.classList.toggle('rtl', rtl);
-        // The overlay covers the host. A document's overlay is sized by CSS.
-        if (!this.target.isDocument) {
-            writeStyle(this.frameEl, 'width', `${hostWidth}px`);
-            writeStyle(this.frameEl, 'height', `${hostHeight}px`);
-        }
-    }
 
-    // Step 4 (thickness, read) and step 5 (writes): the bars, the corner and the host custom
-    // properties. The scroller is never made smaller: keeping content clear of the bars is the
-    // container's, with the two size properties.
-    private writeBars(): void {
-        const rtl = this.target.rtl();
-        const vertical = this.states.vertical.displayed;
-        const horizontal = this.states.horizontal.displayed;
-        const vT = vertical ? this.bars.vertical.thickness() : 0;
-        const hT = horizontal ? this.bars.horizontal.thickness() : 0;
+        const vertical = read.displayed.vertical;
+        const horizontal = read.displayed.horizontal;
+        const vT = vertical ? read.thickness.vertical ?? 0 : 0;
+        const hT = horizontal ? read.thickness.horizontal ?? 0 : 0;
         const both = vertical && horizontal;
 
-        writeStyle(this.bars.vertical.root.el, 'bottom', inset(both ? hT : 0));
         const hBar = this.bars.horizontal.root.el;
-        writeStyle(hBar, rtl ? 'left' : 'right', inset(vT));
-        writeStyle(hBar, rtl ? 'right' : 'left', '');
+        if (writeStyle(this.bars.vertical.root.el, 'bottom', inset(both ? hT : 0))) changed = true;
+        if (writeStyle(hBar, rtl ? 'left' : 'right', inset(vT))) changed = true;
+        if (writeStyle(hBar, rtl ? 'right' : 'left', '')) changed = true;
 
         writeStyle(this.corner.el, 'display', both && !this.hidden('corner') ? '' : 'none');
         writeStyle(this.corner.el, 'width', `${vT}px`);
@@ -1092,6 +1281,8 @@ export class ScrollbarController implements InputHost {
 
         writeStyle(this.host, '--ax-scrollbar-vertical-size', vertical ? `${vT}px` : '0px');
         writeStyle(this.host, '--ax-scrollbar-horizontal-size', horizontal ? `${hT}px` : '0px');
+        this.rects = { vertical: null, horizontal: null };
+        return changed;
     }
 
     private mode(axis: Axis): 'auto' | 'always' | 'hidden' {
@@ -1111,16 +1302,29 @@ export class ScrollbarController implements InputHost {
         return this.entries.map((entry) => (isElement(entry) ? elementMarker(entry, axis) : objectMarker(entry)));
     }
 
-    private collectMarkers(): void {
+    // The markers now (read): the list that was set, read again as the label of an element may have
+    // changed, or what the selector matches.
+    private readMarkerList(): ScrollMarker[] {
         let list: ScrollMarker[];
         if (this.entries !== null) {
-            // Read again: the label of an element may have changed.
             this.list = this.normalise();
             list = this.list.slice();
         } else {
             list = this.selectorMarkers();
         }
         this.matched = this.entries === null ? list : [];
+        return list;
+    }
+
+    // The markers the bars have parts for, both axes.
+    private currentMarkers(): ScrollMarker[] {
+        const markers: ScrollMarker[] = [];
+        for (const axis of AXES) for (const placed of this.sets[axis].list) markers.push(placed.marker);
+        return markers;
+    }
+
+    // Builds the parts of a new list (write).
+    private applyMarkerList(list: ScrollMarker[]): void {
         for (const axis of AXES) this.sets[axis].set(list);
         this.syncLayers();
         // A card whose marker is gone closes, and so does a hover on it.
@@ -1144,10 +1348,10 @@ export class ScrollbarController implements InputHost {
 
     // Point and placement of a card for a marker at `offset` along its bar: the card meets the
     // inner edge of the bar, and the marker's centre.
-    private cardPoint(axis: Axis, offset: number): { point: { x: number; y: number }; placement: Placement } {
+    private cardPoint(axis: Axis, offset: number, rects?: { barRect: DOMRect; area: DOMRect }): { point: { x: number; y: number }; placement: Placement } {
         const bar = this.bars[axis];
-        const barRect = bar.root.el.getBoundingClientRect();
-        const area = bar.area.getBoundingClientRect();
+        const barRect = rects ? rects.barRect : bar.root.el.getBoundingClientRect();
+        const area = rects ? rects.area : bar.area.getBoundingClientRect();
         const rtl = this.target.rtl();
         if (axis === 'vertical') {
             return { point: { x: rtl ? barRect.right : barRect.left, y: area.top + offset }, placement: rtl ? 'right' : 'left' };
@@ -1181,12 +1385,12 @@ export class ScrollbarController implements InputHost {
     }
 
     // Keeps an open card on its marker while the layout moves.
-    private updateCard(): void {
+    private updateCard(rects: FrameRead['card']): void {
         const shown = this.card;
-        if (!shown || this.cards.shownId !== shown.id) return;
+        if (!shown || !rects || this.cards.shownId !== shown.id) return;
         const placed = this.placedOf(shown.axis, shown.id);
         if (!placed) return;
-        const { point, placement } = this.cardPoint(shown.axis, drawnOffset(placed));
+        const { point, placement } = this.cardPoint(shown.axis, drawnOffset(placed), rects);
         this.cards.reposition(point, placement, this.tokens.cardGap);
     }
 
@@ -1214,13 +1418,35 @@ export class ScrollbarController implements InputHost {
         this.request();
     }
 
+    // The indicator ends after a delay without a move. Every scroll and every pointer move starts that
+    // delay again, so it is a deadline, not a timer set and cleared each time: one timer waits for
+    // the deadline and, when it fires early because the deadline moved, waits again for what is left.
     private armIndicator(): void {
-        clearTimeout(this.indicatorTimer);
-        this.indicatorTimer = 0;
-        if (this.indicatorPinned()) return;
+        if (this.indicatorPinned()) {
+            clearTimeout(this.indicatorTimer);
+            this.indicatorTimer = 0;
+            return;
+        }
         const touch = this.indicator === 'touch';
-        this.indicatorTimer = window.setTimeout(() => this.expireIndicator(), touch ? this.tokens.touchIdleDelay : this.tokens.idleDelay);
+        const delay = touch ? this.tokens.touchIdleDelay : this.tokens.idleDelay;
+        this.indicatorDeadline = performance.now() + delay;
+        // A timer that waits for later than the deadline (the delay got shorter) is set again.
+        if (this.indicatorTimer && this.indicatorTimerAt <= this.indicatorDeadline) return;
+        clearTimeout(this.indicatorTimer);
+        this.indicatorTimerAt = this.indicatorDeadline;
+        this.indicatorTimer = window.setTimeout(this.indicatorDue, delay);
     }
+
+    private readonly indicatorDue = (): void => {
+        this.indicatorTimer = 0;
+        const left = this.indicatorDeadline - performance.now();
+        if (left > 1) {
+            this.indicatorTimerAt = this.indicatorDeadline;
+            this.indicatorTimer = window.setTimeout(this.indicatorDue, left);
+            return;
+        }
+        this.expireIndicator();
+    };
 
     private expireIndicator(): void {
         this.indicatorTimer = 0;
