@@ -809,23 +809,28 @@ const checks: Check[] = [
     {
         name: 'tokens: --ax-scrollbar-scroll-smoothing: 200ms glides slower than the default',
         run: async (t) => {
-            const firstFrame = async (): Promise<number> => {
+            // The share of the 40px glide done 40ms after the first frame that moved, on the page's clock.
+            const progressAt40ms = async (): Promise<number> => {
                 await t.reset();
                 const c = centre(await t.box('v', 'button-end-vertical'));
                 await t.page.mouse.move(c.x, c.y);
+                const sampling = t.call<[number, number][]>('scrollSample', 'v', 400);
                 await t.page.mouse.down();
                 await t.page.mouse.up();
-                await t.frames(1);
-                const first = (await t.call('scrollOf', 'v')).host;
+                const rows = await sampling;
                 await t.settle();
                 near((await t.call('scrollOf', 'v')).host, 40, 0.5, 'scrollTop after the glide');
-                return first;
+                const first = rows.find((r) => r[1] > 0);
+                expect(first !== undefined, 'the click did not start a glide within 400ms');
+                const at = rows.find((r) => r[0] >= first![0] + 40);
+                expect(at !== undefined, 'no frame 40ms after the glide began');
+                return at![1] / 40;
             };
-            const normal = await firstFrame();
+            const normal = await progressAt40ms();
             await t.call('setStyle', 'v', '--ax-scrollbar-scroll-smoothing', '200ms');
             try {
-                const slow = await firstFrame();
-                expect(slow > 0 && slow < normal / 2, `one frame after a click: ${round(slow)} with 200ms, ${round(normal)} with the default 50ms`);
+                const slow = await progressAt40ms();
+                expect(slow + 0.2 < normal, `40ms after the glide began: ${round(slow * 100)}% with 200ms, ${round(normal * 100)}% with the default 50ms`);
             } finally {
                 await t.call('setStyle', 'v', '--ax-scrollbar-scroll-smoothing', '');
             }
@@ -2162,6 +2167,30 @@ const checks: Check[] = [
                 const row = rows.find((r) => r[0] >= from + ms) || rows[rows.length - 1];
                 return parseFloat(row[1]);
             };
+            // A linear fade of `duration` ms: on every frame that falls inside it, the opacity must be the
+            // ramp's value at the frame's own page time. The ramp starts between the last frame still at the
+            // old value and the first frame past it, so it starts at the middle of that gap.
+            const linearFade = (rows: [number, string][], rising: boolean, duration: number): { frames: number; worst: number; at: string } => {
+                const values = rows.map(([time, v]) => [time, parseFloat(v)] as [number, number]);
+                const edge = values.findIndex(([, v]) => (rising ? v > 0 : v < 1));
+                if (edge < 1) throw new Error(`the fade did not start inside the sample: ${JSON.stringify(values.slice(0, 5))}`);
+                const start = (values[edge - 1][0] + values[edge][0]) / 2;
+                let frames = 0;
+                let worst = 0;
+                let worstAt = '';
+                for (const [time, v] of values.slice(edge)) {
+                    const elapsed = time - start;
+                    if (elapsed < 0 || elapsed > duration) continue;
+                    const ramp = Math.min(1, Math.max(0, elapsed / duration));
+                    const expected = rising ? ramp : 1 - ramp;
+                    frames++;
+                    if (Math.abs(v - expected) > worst) {
+                        worst = Math.abs(v - expected);
+                        worstAt = `${round(elapsed)}ms: ${round(v)}, linear ${round(expected)}`;
+                    }
+                }
+                return { frames, worst, at: worstAt };
+            };
             try {
                 await t.reset();
                 await t.sleep(1200);
@@ -2176,18 +2205,24 @@ const checks: Check[] = [
 
                 await t.call('setStyle', 'surf', '--ax-scrollbar-fade-in-duration', '400ms');
                 await t.call('setStyle', 'surf', '--ax-scrollbar-fade-out-duration', '400ms');
+                // Start sampling before the pointer moves in, so the fade's first frames are in the rows. The
+                // window ends before the 700ms hide delay, so the fade out does not begin inside it.
+                const fadingIn = t.call<[number, string][]>('sample', 'surf', 'thumb-vertical', '--ax-scrollbar-shown-opacity', 600);
                 await t.page.mouse.move(host.left + 40, host.top + 40);
-                rows = await t.call<[number, string][]>('sample', 'surf', 'thumb-vertical', '--ax-scrollbar-shown-opacity', 700);
-                start = (rows.find((r) => parseFloat(r[1]) > 0) || rows[0])[0];
-                const mid = at(rows, start, 184);
-                expect(mid > 0.35 && mid < 0.65, `linear fade in over 400ms: ${mid} half way`);
-                expect(at(rows, start, 450) === 1, `the fade in did not end: ${JSON.stringify(rows.filter((_, i) => i % 3 === 0))}`);
+                rows = await fadingIn;
+                const inFade = linearFade(rows, true, 400);
+                expect(inFade.frames >= 5, `only ${inFade.frames} frames inside the 400ms fade in`);
+                expect(inFade.worst <= 0.1, `fade in is not linear over 400ms: worst ${inFade.at}`);
+                const inStart = (rows.find((r) => parseFloat(r[1]) > 0) || rows[0])[0];
+                const settled = rows.filter((r) => r[0] - inStart >= 450);
+                expect(settled.length > 0 && settled.every((r) => parseFloat(r[1]) === 1), `the fade in did not end: ${JSON.stringify(rows.filter((_, i) => i % 3 === 0))}`);
                 // Out: after the hide delay, linear over 400ms.
+                const fadingOut = t.call<[number, string][]>('sample', 'surf', 'thumb-vertical', '--ax-scrollbar-shown-opacity', 1500);
                 await t.park();
-                rows = await t.call<[number, string][]>('sample', 'surf', 'thumb-vertical', '--ax-scrollbar-shown-opacity', 1500);
-                const drop = (rows.find((r) => parseFloat(r[1]) < 1) || rows[0])[0];
-                const out = at(rows, drop, 184);
-                expect(out > 0.35 && out < 0.65, `linear fade out over 400ms: ${out} half way`);
+                rows = await fadingOut;
+                const outFade = linearFade(rows, false, 400);
+                expect(outFade.frames >= 5, `only ${outFade.frames} frames inside the 400ms fade out`);
+                expect(outFade.worst <= 0.1, `fade out is not linear over 400ms: worst ${outFade.at}`);
             } finally {
                 await t.call('setStyle', 'surf', '--ax-scrollbar-idle-delay', '');
                 await t.call('setStyle', 'surf', '--ax-scrollbar-fade-in-duration', '');

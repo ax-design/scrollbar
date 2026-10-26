@@ -452,6 +452,22 @@ const axTest = {
         });
     },
 
+    // The scrollTop of a scroll host on every frame for ms milliseconds: [time, scrollTop] rows.
+    scrollSample(id: string, ms: number): Promise<[number, number][]> {
+        const host = el(id);
+        const rows: [number, number][] = [];
+        const start = performance.now();
+        return new Promise((resolve) => {
+            const step = (): void => {
+                const now = performance.now();
+                rows.push([now - start, host.scrollTop]);
+                if (now - start < ms) requestAnimationFrame(step);
+                else resolve(rows);
+            };
+            requestAnimationFrame(step);
+        });
+    },
+
     // Counts the getBoundingClientRect calls on an element (the markers are measured with it).
     spyRects(elementId: string): void {
         const node = el(elementId) as Scroller;
