@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scrollbar demo</title>
+<link rel="stylesheet" href="./minimal.css">
+<link rel="stylesheet" href="./win11.css">
+<link rel="stylesheet" href="./cyberpunk.css">
+<link rel="stylesheet" href="./kits/luna-schemes.css">
+<link rel="stylesheet" href="./xp-window.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #e9e9e9; color: #222; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body { padding-right: 24px; min-height: 100vh; }
+  header { padding: 32px 48px 8px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 32px; }
+  h1 { font-size: 30px; font-weight: 400; margin: 0; }
+  header p { margin: 0; color: #555; }
+  header label { margin-left: auto; display: flex; gap: 8px; align-items: center; font-size: 14px; }
+  select { font: inherit; font-size: 14px; padding: 4px 6px; }
+
+  .stages { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 32px; padding: 16px 48px 32px; }
+  .stage { min-width: 0; }
+  .stage-win8 { flex: 1 1 560px; }
+  .stage-xp { flex: 1 1 500px; }
+  .stage-win11 { flex: 1 1 100%; }
+  .stage-cyber { flex: 1 1 100%; }
+  @media (max-width: 1099px) { .stage-win8, .stage-xp { flex-basis: 100%; } }
+  .caption { margin: 0 0 8px; font-size: 13px; line-height: 20px; color: #555; }
+
+  /* Windows 8 stage: a Modern UI app canvas. */
+  .app { background: #fff; padding: 40px 0 40px 120px; display: flex; flex-direction: column; overflow: hidden; }
+  .app-title { font: 300 42px/46px "Segoe UI Light", "Segoe UI", system-ui, sans-serif; color: #000; margin: 0 0 20px; }
+  ax-scroll-view.article { height: 420px; flex: none; }
+  .prose { padding: 0 40px 0 0; font: 15px/1.6 "Segoe UI", system-ui, sans-serif; color: #111; }
+  .prose h2 { font: 300 24px/1.3 "Segoe UI Light", "Segoe UI", system-ui, sans-serif; margin: 22px 0 6px; color: #000; }
+  .prose h2:first-child { margin-top: 0; }
+  .prose p { margin: 0 0 12px; }
+  ax-scroll-view.hub { height: 260px; flex: none; margin-top: 24px; }
+  /* The bar overlays the content, as on the Windows 8 Start screen: the tiles leave it room. */
+  .groups { display: flex; gap: 48px; width: max-content; padding: 0 40px 24px 0; height: 100%; box-sizing: border-box; }
+  .group h3 { font: 300 20px/1.3 "Segoe UI Light", "Segoe UI", system-ui, sans-serif; margin: 0 0 12px; color: #000; }
+  .tiles { display: grid; grid-template-rows: repeat(2, 92px); grid-auto-flow: column; grid-auto-columns: 92px; gap: 12px; }
+  .tile { position: relative; color: #fff; padding: 10px; font: 15px/1.2 "Segoe UI", system-ui, sans-serif; display: flex; align-items: flex-end; }
+  .tile.wide { grid-column: span 2; }
+  .tile:nth-child(5n+1) { background: #4617b4; }
+  .tile:nth-child(5n+2) { background: #2e8def; }
+  .tile:nth-child(5n+3) { background: #00a300; }
+  .tile:nth-child(5n+4) { background: #da532c; }
+  .tile:nth-child(5n+5) { background: #b01e00; }
+
+  /* Windows XP stage: a window in the Luna style, with the chrome in xp.css. */
+  .xp-client { background: #fff; display: flex; flex-direction: column; gap: 8px; padding: 0; }
+  ax-scroll-view.big { height: 380px; flex: none; }
+  ax-scroll-view.small { height: 110px; flex: none; }
+  /* The bars are an overlay: the window keeps the content clear of them with the sizes the scroll
+     view writes on itself (0 for a bar that is not shown). The wide table is as wide as its text,
+     so the padding after it keeps its end clear of the vertical bar too. */
+  .notes { padding: 8px calc(var(--ax-scrollbar-vertical-size, 0px) + 6px) calc(var(--ax-scrollbar-horizontal-size, 0px) + 8px) 10px; font: 11px/1.5 Tahoma, Verdana, sans-serif; color: #000; }
+  .notes h3 { font: bold 11px Tahoma, Verdana, sans-serif; margin: 12px 0 4px; }
+  .notes h3:first-child { margin-top: 0; }
+  .notes p { margin: 0 0 8px; }
+  .notes pre { margin: 0 0 8px; width: max-content; padding-right: calc(var(--ax-scrollbar-vertical-size, 0px) + 6px); font: 11px/1.4 "Courier New", monospace; white-space: pre; }
+
+  /* XP stage: the times of the XP info tip (the scrollbar tokens of the luna views). */
+  ax-scroll-view[kit="luna"] { --ax-scrollbar-card-delay: 500ms; }
+
+  /* Windows 11 stage: a light Fluent page. The text and the swatches are plain page styling: the swatches
+     reach the right edge, under the bar, so the acrylic of its track has something to blur. */
+  .win11-panel { background: #f3f3f3; border-radius: 8px; padding: 20px 0 20px 32px; display: flex; flex-direction: column; gap: 12px; }
+  .variant-note { margin: 0 32px 0 0; }
+  .variant { display: flex; gap: 8px; align-items: center; font-size: 14px; margin-right: 32px; }
+  ax-scroll-view.win11-article { height: 340px; min-width: 0; }
+  .win11-body { padding: 0 0 0 0; font: 14px/1.57 "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; color: #1b1b1b; }
+  .win11-body h2 { font-size: 20px; font-weight: 600; margin: 24px 0 6px; }
+  .win11-body h2:first-child { margin-top: 0; }
+  .win11-body p { margin: 0 56px 10px 0; max-width: 62ch; }
+  .swatches { display: grid; grid-template-columns: repeat(6, 1fr); height: 64px; margin: 4px 0 12px; }
+  .swatches span:nth-child(1) { background: #0078d4; }
+  .swatches span:nth-child(2) { background: #107c10; }
+  .swatches span:nth-child(3) { background: #ffb900; }
+  .swatches span:nth-child(4) { background: #d13438; }
+  .swatches span:nth-child(5) { background: #8764b8; }
+  .swatches span:nth-child(6) { background: #2d2d2d; }
+  .win11-body .wide { width: 1600px; margin-right: 0; }
+
+  /* Cyber Punk stage: the default parts, configured by cyberpunk.css. The panel and the text are plain
+     page styling. */
+  .cyber-panel { background: #07070f; padding: 24px 0 24px 32px; display: flex; }
+  ax-scroll-view.cyber-article { height: 340px; flex: 1 1 auto; min-width: 0; }
+  .cyber-body { padding: 0 40px 0 0; font: 14px/1.65 ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace; color: #9fd8de; }
+  .cyber-body h2 { font-size: 18px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: #3df0ff; margin: 22px 0 6px; text-shadow: 0 0 8px rgba(61, 240, 255, 0.5); }
+  .cyber-body h2:first-child { margin-top: 0; }
+  .cyber-body p { margin: 0 0 10px; }
+  .cyber-body b { color: #ff4fe0; font-weight: 400; }
+
+  /* Pages that scroll: the stages and a footer of text. */
+  footer { padding: 16px 48px 80px; max-width: 900px; font-size: 15px; color: #333; }
+  footer h2 { font-size: 20px; font-weight: 400; margin: 28px 0 8px; color: #111; }
+  footer p { margin: 0 0 12px; }
+</style>
+</head>
+<body class="luna-blue">
+<header>
+  <h1>Scrollbar</h1>
+  <p>Scrollbars you style with CSS, on a scroll view and on the page.</p>
+  <label>Page scrollbar:
+    <select id="page-theme">
+      <option value="win8" selected>Windows 8 (default)</option>
+      <option value="minimal">Minimal</option>
+      <option value="luna">Windows XP</option>
+      <optgroup label="Windows 11">
+        <option value="win11-default">Windows 11, Default</option>
+        <option value="win11-minimal">Windows 11, Minimal</option>
+        <option value="win11-full">Windows 11, Full</option>
+      </optgroup>
+      <option value="cyber">Cyber Punk</option>
+    </select>
+  </label>
+  <label>Luna colour scheme:
+    <select id="luna-scheme">
+      <option value="blue" selected>Blue</option>
+      <option value="olive">Olive Green</option>
+      <option value="silver">Silver</option>
+      <option value="purple">Purple</option>
+      <option value="gold">Gold</option>
+      <option value="orange">Orange</option>
+      <option value="pink">Pink</option>
+    </select>
+  </label>
+</header>
+
+<main class="stages">
+  <section class="stage stage-win8" aria-label="Windows 8 stage">
+    <p class="caption">Windows 8 is the default look: square parts, a 17px bar, flat ticks and a square card. These scroll views set no look at all: only their content, <code>snap</code> (whole device pixels) and no touch input (the touch indicator is a panning indicator).</p>
+    <div class="app">
+      <div class="app-title">Reading</div>
+      <ax-scroll-view snap class="article" marker-selector="h2" marker-align="center">
+        <div class="prose">
+          <h2>Slow mornings</h2>
+          <p>Most days start the same way. The kettle goes on before the window is open, and the house is quiet for a while. It is a good time to read the notes from the day before and to decide what needs doing first.</p>
+          <p>Some people like a long list. Others prefer three things written on a card. Either works when the list is kept short enough to look at once.</p>
+          <h2>Keeping a shared table</h2>
+          <p>A table that many people use needs a few simple habits. Things go back where they were found. Anything that is finished goes in the box by the door, and anything that is not yet finished gets a label with a date on it.</p>
+          <p>Nobody should have to ask where the scissors are. A drawer for small tools, kept in the same place, saves more time than any clever arrangement of shelves.</p>
+          <h2>Walks without a plan</h2>
+          <p>A walk with no destination often ends up somewhere better than planned. Take a turn that looks interesting and see where the street leads. Stop when the light starts to change, not when the phone says the walk is finished.</p>
+          <p>Bring water and something to sit on. A bench is a fine place to end a walk, and the trip home is shorter when there has been a rest.</p>
+          <h2>Plants on a windowsill</h2>
+          <p>Most indoor plants want bright light and very little water. Too much of the second kills more plants than anything else. Push a finger into the soil before watering, and water only when the top layer is dry.</p>
+          <p>Turn the pot a quarter turn each week so that the plant grows evenly. Leaves that turn yellow are usually a sign of too much water, not too little.</p>
+          <h2>Cooking for one</h2>
+          <p>Cooking for a single person means buying small amounts or freezing what is left. Soup, rice dishes and roasted vegetables all keep well for several days, and they are easy to reheat without much attention.</p>
+          <p>Write down the meals that worked. A short list of five or six dinners is enough to avoid the same disappointment twice in a week.</p>
+          <h2>Letters and short notes</h2>
+          <p>A short handwritten note can say more than a long message. It does not need to be clever. Saying that a thing was noticed, or that a day was missed, is usually enough to start a reply.</p>
+          <p>Keep a few blank cards near the desk. A card that is written in five minutes is more likely to be sent than one that waits for the right moment.</p>
+          <h2>Tools that stay sharp</h2>
+          <p>A dull knife is more dangerous than a sharp one, because it asks for more force and slips more easily. Sharpen blades a little and often, rather than rarely and heavily.</p>
+          <p>Oil wooden handles once or twice a year. Store tools dry, and check them after a wet season for rust on the joints and the edges.</p>
+          <h2>Quiet evenings</h2>
+          <p>The last hour before sleep is easier with the lights low and the screens off. A book, a radio or a conversation with someone in the same room will do.</p>
+          <p>When the evening ends, put tomorrow's first task on top of the pile. That makes the morning start a little more gently than the one before.</p>
+        </div>
+      </ax-scroll-view>
+
+      <ax-scroll-view snap class="hub" vertical="hidden" horizontal="auto" marker-selector=".group h3" marker-axis="horizontal" marker-align="center">
+        <div class="groups">
+          <section class="group">
+            <h3>Morning</h3>
+            <div class="tiles">
+              <div class="tile wide">Notes</div>
+              <div class="tile">Calendar</div>
+              <div class="tile">Weather</div>
+              <div class="tile wide">Photos</div>
+              <div class="tile">Timer</div>
+              <div class="tile">Maps</div>
+              <div class="tile wide">Feed</div>
+              <div class="tile">Sync</div>
+            </div>
+          </section>
+          <section class="group">
+            <h3>Afternoon</h3>
+            <div class="tiles">
+              <div class="tile">Mail</div>
+              <div class="tile wide">Music</div>
+              <div class="tile">Tasks</div>
+              <div class="tile">Clock</div>
+              <div class="tile wide">Video</div>
+              <div class="tile">Files</div>
+              <div class="tile">Lists</div>
+            </div>
+          </section>
+          <section class="group">
+            <h3>Evening</h3>
+            <div class="tiles">
+              <div class="tile wide">Reading</div>
+              <div class="tile">Recipes</div>
+              <div class="tile">Garden</div>
+              <div class="tile wide">Games</div>
+              <div class="tile">Radio</div>
+              <div class="tile">Sleep</div>
+            </div>
+          </section>
+        </div>
+      </ax-scroll-view>
+    </div>
+  </section>
+
+  <section class="stage stage-xp" aria-label="Windows XP stage">
+    <p class="caption">Windows XP: dependency injection. A kit (kits/luna.ts) replaces the parts with classes that carry their own look, for a window in the Luna look. Blue, Olive Green and Silver are the schemes of Windows XP; Purple is ours, the blue scheme turned to violet.</p>
+    <div class="xp-window">
+      <div class="xp-caption"><span class="xp-title">Release notes</span><span class="xp-buttons"><span class="xp-min"></span><span class="xp-max"></span><span class="xp-close"></span></span></div>
+      <div class="xp-frame">
+        <div class="xp-client">
+          <ax-scroll-view snap touch-input kit="luna" class="big" vertical="always" horizontal="auto" marker-selector="h3" marker-align="center">
+            <div class="notes">
+              <h3>Version 2.4</h3>
+              <p>The list view now keeps its place when the window is resized. Rows that were selected before a resize stay selected after it.</p>
+              <p>Export writes the same columns that are shown on screen, in the same order. Hidden columns are left out of the file.</p>
+              <h3>Version 2.3</h3>
+              <p>Search results can be sorted by date or by name. The sort choice is remembered for the next time the page opens.</p>
+              <p>Long names are cut in the middle, not at the end, so the extension stays visible.</p>
+              <h3>Table of values</h3>
+              <pre>name          region      count   unit    last changed         owner           notes
+north-depot   eastern       1204    crates  2026-09-02 08:14     warehouse-a     checked twice
+south-depot   western        877    crates  2026-09-03 17:40     warehouse-b     pending recount
+harbour-store coastal        56     pallets 2026-09-05 11:02     warehouse-c     needs label
+hill-annex    upland        3310    crates  2026-09-07 09:26     warehouse-a     stored outside
+river-yard    lowland        412    drums   2026-09-08 14:55     warehouse-d     seal to replace</pre>
+              <h3>Version 2.2</h3>
+              <p>Fixed a case where the first row was hidden under the header after a scroll. Thanks to everyone who sent a clear report of it.</p>
+              <p>The status line shows the number of rows that match the filter, not the number of rows in the file.</p>
+              <h3>Version 2.1</h3>
+              <p>New option to keep the header row visible while the body scrolls. It is off by default and can be changed in the settings.</p>
+              <p>Documentation was reorganised. Every option now has one example and one short description.</p>
+              <h3>Version 2.0</h3>
+              <p>The first version with keyboard navigation for every command. Shortcuts can be changed in the settings.</p>
+              <p>Older files open without changes. Files saved by this version can be read by the previous one with the new columns left out.</p>
+              <h3>Earlier versions</h3>
+              <p>Earlier notes are kept in the archive. Each entry lists the changes, the people who helped, and any known problems that were still open at the time.</p>
+            </div>
+          </ax-scroll-view>
+          <ax-scroll-view snap touch-input kit="luna" class="small" vertical="always">
+            <div class="notes">
+              <p>A short window with little text. Its bar is shown even though nothing scrolls.</p>
+            </div>
+          </ax-scroll-view>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="stage stage-win11" aria-label="Windows 11 stage">
+    <p class="caption">Windows 11: the default parts, configured with tokens (win11.css), plus one layer added by configuration: the acrylic of the track, from <code>track-layers="scrollbar-fill acrylic"</code>. The variant select picks one of three different scrollbars; the line under it says which and where it comes from.</p>
+    <div class="win11-panel">
+      <label class="variant">Variant:
+        <select id="win11-variant">
+          <option value="default" selected>Default</option>
+          <option value="minimal">Minimal</option>
+          <option value="full">Full</option>
+        </select>
+      </label>
+      <p class="caption variant-note" id="win11-variant-note"></p>
+      <ax-scroll-view class="win11 win11-article" track-layers="scrollbar-fill acrylic" marker-selector="h2" marker-align="center">
+        <div class="win11-body">
+          <h2>Settings</h2>
+          <p>Windows 11 keeps its scrollbars out of the way. At rest a scrolling list shows only a thin line, and the track and the arrows come when the pointer is over the bar.</p>
+          <div class="swatches"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <h2>Accessibility</h2>
+          <p>Under Accessibility there is a switch named Always show scrollbars. With it on, every list shows the full bar, and it stays: the Full variant of this page.</p>
+          <p>The track is acrylic: it blurs what scrolls under it. The swatches above and below are there to show that, as they pass under the bar.</p>
+          <div class="swatches"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <h2>Markers</h2>
+          <p>The headings of this text are markers on the bar, small ticks in the accent colour. Move the pointer to the bar and they come forward; hover one for its card, press it to go there.</p>
+          <p>A tick is wider the nearer it is to the pointer, white on the thumb, and the one for the section on screen is the strongest.</p>
+          <h2>Timing</h2>
+          <p>The bar expands 400ms after the pointer arrives, in 167ms, and contracts 500ms after it leaves. Those times, and the ones for the fades, are tokens of the scroll view, read from the WinUI source.</p>
+          <div class="swatches"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <h2>A wide line</h2>
+          <div class="wide"><p style="max-width: none">This line is wider than the view, so the horizontal bar shows too, with the same thin thumb and the same track along the bottom.</p></div>
+          <h2>The end</h2>
+          <p>That is all of it. Scroll back up with the wheel, the keys or the thumb.</p>
+        </div>
+      </ax-scroll-view>
+    </div>
+  </section>
+  <section class="stage stage-cyber" aria-label="Cyber Punk stage">
+    <p class="caption">Cyber Punk: the default parts, configured with tokens and Shape (cyberpunk.css): bevelled corners on the thumb, the buttons, the track and the card, and diamond markers (a bevel of half the marker's side). No kit, no subclass.</p>
+    <div class="cyber-panel">
+      <ax-scroll-view snap touch-input hide="button" class="cyber cyber-article" marker-selector="h2" marker-align="center">
+        <div class="cyber-body">
+          <h2>Grid access</h2>
+          <p>The rain never stops over the lower districts, and the signs flicker in it like <b>bad memory</b>. Every doorway sells something: a chip, a rumour, a night of sleep that someone else will dream.</p>
+          <p>Cuts are the style here. The thumb, the buttons and the plate that names each marker all lose a corner, and the markers on the track are squares turned on their points.</p>
+          <h2>Black market</h2>
+          <p>Prices change when you look at them. A vendor with three arms and one working eye will tell you it is the <b>last unit</b> in the city, and he has said so since the winter.</p>
+          <p>Pay in cash if you can. Credit leaves a trace, and the traces end up in the same few databases.</p>
+          <h2>Neon district</h2>
+          <p>Cyan for the machines, magenta for the people who sell to them. At night the two colours meet on the wet street and make a third, which nobody has a name for.</p>
+          <p>Hover a diamond on the track: it grows, turns white, and a plate with a cut corner opens beside it.</p>
+          <h2>Dead channels</h2>
+          <p>Old broadcasts still loop in the walls. A voice reads the weather for a year that no longer has one. Somebody keeps the transmitter running, and nobody knows who pays for it.</p>
+          <p>Press the thumb: it turns magenta and takes a border, still cut at its four corners.</p>
+          <h2>Overclock</h2>
+          <p>Everything runs hot. Fans shriek in the stairwells, and the rooftops are forests of radiators. The only quiet place is a freezer room at the back of a noodle bar, which charges by the minute.</p>
+          <p>The marker that matches the section on screen is a size larger, so the current heading is easy to find.</p>
+          <h2>Wide feed</h2>
+          <p style="width: 1400px; white-space: nowrap">One long line of the feed, wider than the plate, so the horizontal bar appears and the corner between the two bars shows its cut: unbroken static, unbroken static, unbroken static, unbroken static, unbroken static, unbroken static.</p>
+          <h2>Signal lost</h2>
+          <p>That is the end of the feed. Scroll up with the wheel, the keys or the thumb, and the diamonds will show where each section began.</p>
+        </div>
+      </ax-scroll-view>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <h2>Notes on this page</h2>
+  <p>Each stage is a scroll view, or a window with one, and its bars are drawn by the component. The stages show three ways to make a look. Windows 8 is the default look: nothing to write. Cyber Punk, Minimal and Windows 11 style the default parts with <code>::part()</code> rules (cyberpunk.css, minimal.css, win11.css) and tokens on the scroll view; Windows 11 also adds a layer by configuration: its track names the acrylic layer of <code>@ax-design/acrylic</code> among its layers (<code>track-layers</code> on the element). Windows XP is dependency injection: a kit (kits/luna.ts) that replaces the parts themselves, with classes that carry their own look.</p>
+  <p>The page scrollbar is a separate element. It is placed over the page, and the native scrollbar of the page is hidden while it is shown. The select in the header picks its look: Windows 8 (the default), Minimal, the Windows XP kit, Windows 11 in each of its variants or Cyber Punk.</p>
+  <h2>Markers</h2>
+  <p>Headings in the content become markers on the track. Hover one to see its card, or click it to scroll to that section. The stage on the left uses the second-level headings, and the window on the right uses the third-level ones.</p>
+  <p>Markers in the Windows 8 stage are flat ticks. In the Windows XP stage they are etched lines, as on the slider marks of that look.</p>
+  <h2>Using the examples</h2>
+  <p>Try the wheel, the keyboard and a touch screen if you have one. Drag the thumbs, click the tracks and hold the buttons. Each of these actions should behave like the native bar would.</p>
+  <p>Text in this page is placeholder text. It was written to fill the stages and to make the page long enough to scroll.</p>
+</footer>
+
+<script type="module" src="./demo.ts"></script>
+</body>
+</html>

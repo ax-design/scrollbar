@@ -1,0 +1,1059 @@
+/* Window chrome of the demo: a Luna window around the XP stage. Not a part of the scrollbar, so it
+   is plain page CSS. Its colours are derived as the scrollbar's are (kits/luna.css): every shade is
+   a tone of the scheme (kits/luna-schemes.css, a class on an ancestor) with translucent white and
+   black over it, the opacities being contrast numbers of the scheme times constants of this
+   construction. A paint is three layers with the same geometry: black over white over its flat
+   tone. The constants were fitted once to the theme's own pieces.
+   The light is a property of the scheme: the schemes lit from above (Silver, Gold) switch the
+   window's geometry and profiles by their class, below ("lit from above"); the window is not a
+   surface, so nothing reflects the light's keyword here.
+   Layout first, then the shades, then the look. */
+
+/* The layout. The client area sits 5px in from the left,
+   right and bottom (4px of frame and its own 1px border). */
+.xp-window { display: flex; flex-direction: column; }
+.xp-caption { position: relative; height: 30px; flex: none; }
+/* The caption is 30px: CaptionBarHeight 25 + 1 (SM_CYCAPTION) + the 4px sizing frame; the theme's bitmap has
+   29 rows and stretches the ones between its top 9 and bottom 17. CaptionFont = Trebuchet MS, 10, bold, at
+   13px. CaptionMargins 4,3,0,0 plus the 1px content margin: the text box starts 5px from the left and 4px
+   from the top and is 25px tall (to the caption's bottom edge less the content margin). */
+.xp-title {
+    position: absolute;
+    left: 5px;
+    top: 4px;
+    max-width: calc(100% - 85px);
+    font: bold 13px/25px "Trebuchet MS", Tahoma, sans-serif;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* Caption buttons: 21 x 21, 5px from the top. The INI offsets (-25, -49, -73) are the left edges
+   measured from the right edge of the caption, so the right inset is 4px, 28px and 52px, with 3px
+   between them. The glyph box (position, size) is with the look, in luna.css. */
+.xp-buttons { position: absolute; inset: 0; pointer-events: none; }
+.xp-min, .xp-max, .xp-close { position: absolute; top: 5px; display: block; width: 21px; height: 21px; pointer-events: auto; }
+.xp-close { right: 4px; }
+.xp-max { right: 28px; }
+.xp-min { right: 52px; }
+/* Frame: 5px left, right and bottom, painted in luna.css: 4px of frame and the client area's 1px
+   border. */
+.xp-frame { flex: 1 1 auto; min-height: 0; padding: 0 4px 4px; }
+.xp-client { box-sizing: border-box; }
+
+/* ---- Shades ------------------------------------------------------------------------------------ */
+
+/* Every colour of the chrome, from the scheme's bases (see the top). */
+.xp-window {
+    /* caption-left: caption */
+    --luna-caption-left: rgba(255, 255, 255, calc(var(--luna-relief) * 0.005));
+    --luna-caption-left-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.085));
+    --luna-caption-left-base: var(--luna-caption);
+    /* caption-right: caption */
+    --luna-caption-right: rgba(255, 255, 255, calc(var(--luna-relief) * 0.01));
+    --luna-caption-right-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.17));
+    --luna-caption-right-base: var(--luna-caption);
+
+    /* caption-shadow-dark: caption */
+    --luna-caption-shadow-dark: rgba(255, 255, 255, 0.015);
+    --luna-caption-shadow-dark-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.65));
+    --luna-caption-shadow-dark-base: var(--luna-caption);
+
+    /* caption-bevel-left: caption-light */
+    --luna-caption-bevel-left: rgba(255, 255, 255, calc(var(--luna-relief) * 1.25));
+    --luna-caption-bevel-left-k: transparent;
+    --luna-caption-bevel-left-base: var(--luna-caption-light);
+    /* caption-bevel-right: face */
+    --luna-caption-bevel-right: rgba(255, 255, 255, calc(var(--luna-relief) * 1.25));
+    --luna-caption-bevel-right-k: transparent;
+    --luna-caption-bevel-right-base: var(--luna-face);
+
+    /* caption-shadow-light: caption */
+    --luna-caption-shadow-light: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.78));
+    --luna-caption-shadow-light-k: transparent;
+    --luna-caption-shadow-light-base: var(--luna-caption);
+
+    /* caption-bottom-b-end: caption-light */
+    --luna-caption-bottom-b-end: transparent;
+    --luna-caption-bottom-b-end-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.205 + (1 - var(--luna-gloss)) * (1 - var(--luna-depth)) * 0.243));
+    --luna-caption-bottom-b-end-base: var(--luna-caption-light);
+    /* caption-bottom-b: caption-light */
+    --luna-caption-bottom-b: transparent;
+    --luna-caption-bottom-b-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.205));
+    --luna-caption-bottom-b-base: var(--luna-caption-light);
+    /* caption-bottom-end: caption-light */
+    --luna-caption-bottom-end: transparent;
+    --luna-caption-bottom-end-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.35));
+    --luna-caption-bottom-end-base: var(--luna-caption-light);
+    /* caption-bottom: caption */
+    --luna-caption-bottom: rgba(255, 255, 255, 0.045);
+    --luna-caption-bottom-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.055));
+    --luna-caption-bottom-base: var(--luna-caption);
+    /* caption-glow: caption-light */
+    --luna-caption-glow: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.085));
+    --luna-caption-glow-k: rgba(0, 0, 0, 0.08);
+    --luna-caption-glow-base: var(--luna-caption-light);
+    /* caption-shade: caption-light */
+    --luna-caption-shade: transparent;
+    --luna-caption-shade-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.055));
+    --luna-caption-shade-base: var(--luna-caption-light);
+    /* caption-corner: caption-light */
+    --luna-caption-corner: rgba(255, 255, 255, calc(var(--luna-relief) * 0.04));
+    --luna-caption-corner-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.125));
+    --luna-caption-corner-base: var(--luna-caption-light);
+    /* caption-corner-r: caption */
+    --luna-caption-corner-r: rgba(255, 255, 255, calc(var(--luna-relief) * 0.34));
+    --luna-caption-corner-r-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.175));
+    --luna-caption-corner-r-base: var(--luna-caption);
+    /* caption-light-a: caption-light */
+    --luna-caption-light-a: rgba(255, 255, 255, calc((1 - var(--w-etch)) * (0.117 + 0.679 * var(--luna-depth))));
+    --luna-caption-light-a-k: rgba(0, 0, 0, calc(var(--w-etch) * 0.28));
+    --luna-caption-light-a-base: var(--luna-caption-light);
+    /* caption-light-b: caption-light */
+    --luna-caption-light-b: rgba(255, 255, 255, calc((1 - var(--w-etch)) * (0.114 + 0.286 * var(--luna-depth)) + var(--w-etch)));
+    --luna-caption-light-b-k: transparent;
+    --luna-caption-light-b-base: var(--luna-caption-light);
+    /* caption-a: caption-light */
+    --luna-caption-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.24));
+    --luna-caption-a-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.085));
+    --luna-caption-a-base: var(--luna-caption-light);
+    /* caption-b: caption-light */
+    --luna-caption-b: transparent;
+    --luna-caption-b-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.26));
+    --luna-caption-b-base: var(--luna-caption-light);
+    /* caption-c: caption-light */
+    --luna-caption-c: transparent;
+    --luna-caption-c-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.175));
+    --luna-caption-c-base: var(--luna-caption-light);
+    /* caption-d: caption-light */
+    --luna-caption-d: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.295));
+    --luna-caption-d-k: transparent;
+    --luna-caption-d-base: var(--luna-caption-light);
+    /* caption-e: caption-light */
+    --luna-caption-e: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.115));
+    --luna-caption-e-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.065));
+    --luna-caption-e-base: var(--luna-caption-light);
+    /* caption-top: caption */
+    --luna-caption-top: rgba(255, 255, 255, calc(var(--luna-relief) * 0.05));
+    --luna-caption-top-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.085));
+    --luna-caption-top-base: var(--luna-caption);
+    /* caption-outline: caption */
+    --luna-caption-outline: transparent;
+    --luna-caption-outline-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.195));
+    --luna-caption-outline-base: var(--luna-caption);
+    /* caption-outline-r: caption */
+    --luna-caption-outline-r: transparent;
+    --luna-caption-outline-r-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.39));
+    --luna-caption-outline-r-base: var(--luna-caption);
+
+    /* frame-lit-outline: caption */
+    --luna-frame-lit-outline: transparent;
+    --luna-frame-lit-outline-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.18));
+    --luna-frame-lit-outline-base: var(--luna-caption);
+    /* frame-lit-light: caption */
+    --luna-frame-lit-light: rgba(255, 255, 255, calc(var(--luna-relief) * 0.035));
+    --luna-frame-lit-light-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.09));
+    --luna-frame-lit-light-base: var(--luna-caption);
+    /* frame-lit-a: caption-light */
+    --luna-frame-lit-a: rgba(255, 255, 255, calc(var(--luna-relief) * 0.04));
+    --luna-frame-lit-a-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.04));
+    --luna-frame-lit-a-base: var(--luna-caption-light);
+    /* frame-lit-b: caption */
+    --luna-frame-lit-b: rgba(255, 255, 255, calc(var(--luna-relief) * 0.135));
+    --luna-frame-lit-b-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.055));
+    --luna-frame-lit-b-base: var(--luna-caption);
+    /* frame-lit-c: caption-light */
+    --luna-frame-lit-c: rgba(255, 255, 255, calc(var(--luna-relief) * 0.115));
+    --luna-frame-lit-c-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.045));
+    --luna-frame-lit-c-base: var(--luna-caption-light);
+    /* frame-lit-inner: caption-light */
+    --luna-frame-lit-inner: rgba(255, 255, 255, calc(var(--luna-relief) * 0.035));
+    --luna-frame-lit-inner-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.13));
+    --luna-frame-lit-inner-base: var(--luna-caption-light);
+
+    /* frame-shade-outline: caption */
+    --luna-frame-shade-outline: transparent;
+    --luna-frame-shade-outline-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.41));
+    --luna-frame-shade-outline-base: var(--luna-caption);
+    /* frame-shade-light: caption-deep */
+    --luna-frame-shade-light: rgba(255, 255, 255, calc(var(--luna-relief) * 0.005));
+    --luna-frame-shade-light-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.02));
+    --luna-frame-shade-light-base: var(--luna-caption-deep);
+    /* frame-shade-a: caption-deep */
+    --luna-frame-shade-a: transparent;
+    --luna-frame-shade-a-k: transparent;
+    --luna-frame-shade-a-base: var(--luna-caption-deep);
+    /* frame-shade-b: caption-light */
+    --luna-frame-shade-b: transparent;
+    --luna-frame-shade-b-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.125));
+    --luna-frame-shade-b-base: var(--luna-caption-light);
+    /* frame-shade-c: caption-light */
+    --luna-frame-shade-c: transparent;
+    --luna-frame-shade-c-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.06));
+    --luna-frame-shade-c-base: var(--luna-caption-light);
+    /* frame-shade-inner: caption-light */
+    --luna-frame-shade-inner: transparent;
+    --luna-frame-shade-inner-k: transparent;
+    --luna-frame-shade-inner-base: var(--luna-caption-light);
+
+    /* frame-bevel-outline: caption */
+    --luna-frame-bevel-outline: rgba(255, 255, 255, calc(var(--luna-relief) * 0.07));
+    --luna-frame-bevel-outline-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.27));
+    --luna-frame-bevel-outline-base: var(--luna-caption);
+    /* frame-bevel-light: caption-light */
+    --luna-frame-bevel-light: rgba(255, 255, 255, calc(var(--luna-relief) * 1.25));
+    --luna-frame-bevel-light-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.005));
+    --luna-frame-bevel-light-base: var(--luna-caption-light);
+    /* frame-bevel-a: face */
+    --luna-frame-bevel-a: rgba(255, 255, 255, calc(var(--luna-relief) * 1.25));
+    --luna-frame-bevel-a-k: transparent;
+    --luna-frame-bevel-a-base: var(--luna-face);
+    /* frame-bevel-b: caption-light */
+    --luna-frame-bevel-b: rgba(255, 255, 255, calc(var(--luna-relief) * 1.25));
+    --luna-frame-bevel-b-k: transparent;
+    --luna-frame-bevel-b-base: var(--luna-caption-light);
+    /* frame-bevel-c: caption-deep */
+    --luna-frame-bevel-c: rgba(255, 255, 255, calc(var(--luna-relief) * 0.745));
+    --luna-frame-bevel-c-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.595));
+    --luna-frame-bevel-c-base: var(--luna-caption-deep);
+    /* frame-bevel-inner: caption */
+    --luna-frame-bevel-inner: rgba(255, 255, 255, calc(var(--luna-relief) * 0.07));
+    --luna-frame-bevel-inner-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.27));
+    --luna-frame-bevel-inner-base: var(--luna-caption);
+    /* frame-bevel-bottom-outline: caption */
+    --luna-frame-bevel-bottom-outline: rgba(255, 255, 255, calc(var(--luna-relief) * 0.07));
+    --luna-frame-bevel-bottom-outline-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.27));
+    --luna-frame-bevel-bottom-outline-base: var(--luna-caption);
+    /* frame-bevel-bottom-light: caption-light */
+    --luna-frame-bevel-bottom-light: rgba(255, 255, 255, calc(var(--luna-relief) * 1.25));
+    --luna-frame-bevel-bottom-light-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.005));
+    --luna-frame-bevel-bottom-light-base: var(--luna-caption-light);
+    /* frame-bevel-bottom-a: caption-light */
+    --luna-frame-bevel-bottom-a: rgba(255, 255, 255, calc(var(--luna-relief) * 0.06));
+    --luna-frame-bevel-bottom-a-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.305));
+    --luna-frame-bevel-bottom-a-base: var(--luna-caption-light);
+    /* frame-bevel-bottom-b: caption */
+    --luna-frame-bevel-bottom-b: rgba(255, 255, 255, calc(var(--luna-relief) * 0.32));
+    --luna-frame-bevel-bottom-b-k: transparent;
+    --luna-frame-bevel-bottom-b-base: var(--luna-caption);
+    /* frame-bevel-bottom-c: caption-light */
+    --luna-frame-bevel-bottom-c: rgba(255, 255, 255, calc(var(--luna-relief) * 0.005));
+    --luna-frame-bevel-bottom-c-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.305));
+    --luna-frame-bevel-bottom-c-base: var(--luna-caption-light);
+    /* frame-bevel-bottom-inner: caption */
+    --luna-frame-bevel-bottom-inner: rgba(255, 255, 255, calc(var(--luna-relief) * 0.07));
+    --luna-frame-bevel-bottom-inner-k: rgba(0, 0, 0, calc(var(--luna-relief) * 0.27));
+    --luna-frame-bevel-bottom-inner-base: var(--luna-caption);
+
+    /* cb-ring: caption-deep */
+    --luna-cb-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.01));
+    --luna-cb-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.39));
+    --luna-cb-ring-base: var(--luna-caption-deep);
+    /* cb-light: caption */
+    --luna-cb-light: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.575));
+    --luna-cb-light-k: rgba(0, 0, 0, 0.05);
+    --luna-cb-light-base: var(--luna-caption);
+    /* cb-fill-a: caption */
+    --luna-cb-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 1.5));
+    --luna-cb-fill-a-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.02));
+    --luna-cb-fill-a-base: var(--luna-caption);
+    /* cb-fill-b: caption-light */
+    --luna-cb-fill-b: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.96));
+    --luna-cb-fill-b-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.205));
+    --luna-cb-fill-b-base: var(--luna-caption-light);
+    /* cb-fill-c: caption */
+    --luna-cb-fill-c: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.785));
+    --luna-cb-fill-c-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.28));
+    --luna-cb-fill-c-base: var(--luna-caption);
+    /* cb-shade: over the face; black toward the bottom right corner */
+    --luna-cb-shade: transparent;
+    --luna-cb-shade-k: rgba(0, 0, 0, calc(0.115 + var(--luna-shade) * 0.15));
+    --luna-cb-shade-k-end: rgba(0, 0, 0, 0.14);
+    /* cb-shade-b: over the face; black toward the bottom right corner */
+    --luna-cb-shade-b: transparent;
+    --luna-cb-shade-b-k: rgba(0, 0, 0, calc(0.04 + var(--luna-shade) * 0.115));
+    --luna-cb-shade-b-k-end: rgba(0, 0, 0, calc(var(--luna-shade) * 0.065));
+    /* cb-inner: over the face; white from the corner to the far end */
+    --luna-cb-inner: transparent;
+    --luna-cb-inner-end: transparent;
+    --luna-cb-inner-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.025));
+    /* cb-glyph: text */
+    --luna-cb-glyph: rgba(255, 255, 255, 0.145);
+    --luna-cb-glyph-k: transparent;
+    --luna-cb-glyph-base: var(--luna-text);
+    /* cb-gfill: caption, the fill of the minimize bar and the maximize frame's top band (embossed glyphs) */
+    --luna-cb-gfill: transparent;
+    --luna-cb-gfill-k: rgba(0, 0, 0, 0.06);
+    --luna-cb-gfill-base: var(--luna-caption);
+    /* cb-etch: caption */
+    --luna-cb-etch: rgba(255, 255, 255, calc(var(--luna-etch)));
+    --luna-cb-etch-k: transparent;
+    --luna-cb-etch-base: var(--luna-caption);
+
+    /* cb-hot-ring: caption-deep */
+    --luna-cb-hot-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.01));
+    --luna-cb-hot-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.445));
+    --luna-cb-hot-ring-base: var(--luna-caption-deep);
+    /* cb-hot-light: caption-light */
+    --luna-cb-hot-light: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.09 + var(--luna-hot) * 0.85));
+    --luna-cb-hot-light-k: transparent;
+    --luna-cb-hot-light-base: var(--luna-caption-light);
+    /* cb-hot-glow: caption */
+    --luna-cb-hot-glow: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.165 + var(--luna-hot) * 0.62));
+    --luna-cb-hot-glow-k: transparent;
+    --luna-cb-hot-glow-base: var(--luna-caption);
+    /* cb-hot-fill-a: caption-light */
+    --luna-cb-hot-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 1.205 + var(--luna-hot) * 0.315));
+    --luna-cb-hot-fill-a-k: transparent;
+    --luna-cb-hot-fill-a-base: var(--luna-caption-light);
+    /* cb-hot-fill-b: caption-light */
+    --luna-cb-hot-fill-b: rgba(255, 255, 255, calc(var(--luna-gloss) * 1.25));
+    --luna-cb-hot-fill-b-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.05));
+    --luna-cb-hot-fill-b-base: var(--luna-caption-light);
+    /* cb-hot-fill-c: caption-light */
+    --luna-cb-hot-fill-c: transparent;
+    --luna-cb-hot-fill-c-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.3));
+    --luna-cb-hot-fill-c-base: var(--luna-caption-light);
+    /* cb-hot-shade: over the face; black toward the bottom right corner */
+    --luna-cb-hot-shade: transparent;
+    --luna-cb-hot-shade-k: rgba(0, 0, 0, calc(0.08 + var(--luna-shade) * 0.16));
+    --luna-cb-hot-shade-k-end: rgba(0, 0, 0, calc(var(--luna-shade) * 0.135));
+    /* cb-hot-shade-b: over the face; black toward the bottom right corner */
+    --luna-cb-hot-shade-b: transparent;
+    --luna-cb-hot-shade-b-k: rgba(0, 0, 0, calc(0.01 + var(--luna-shade) * 0.08));
+    --luna-cb-hot-shade-b-k-end: rgba(0, 0, 0, calc(var(--luna-shade) * 0.05));
+    /* cb-hot-inner: over the face; white from the corner to the far end */
+    --luna-cb-hot-inner: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.005));
+    --luna-cb-hot-inner-end: transparent;
+    --luna-cb-hot-inner-k: rgba(0, 0, 0, calc(0.04 + var(--luna-depth) * 0.005));
+    /* cb-hot-glyph: text */
+    --luna-cb-hot-glyph: rgba(255, 255, 255, 0.145);
+    --luna-cb-hot-glyph-k: transparent;
+    --luna-cb-hot-glyph-base: var(--luna-text);
+    /* cb-hot-etch: caption */
+    --luna-cb-hot-etch: rgba(255, 255, 255, calc(var(--luna-hot)));
+    --luna-cb-hot-etch-k: transparent;
+    --luna-cb-hot-etch-base: var(--luna-caption);
+
+    /* cb-pressed-ring: caption-deep */
+    --luna-cb-pressed-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.01));
+    --luna-cb-pressed-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.535));
+    --luna-cb-pressed-ring-base: var(--luna-caption-deep);
+    /* cb-pressed-fill-a: caption-light */
+    --luna-cb-pressed-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.03));
+    --luna-cb-pressed-fill-a-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.39 + var(--luna-press) * 0.295));
+    --luna-cb-pressed-fill-a-base: var(--luna-caption-light);
+    /* cb-pressed-fill-b: caption-light */
+    --luna-cb-pressed-fill-b: transparent;
+    --luna-cb-pressed-fill-b-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.18 + var(--luna-press) * 0.325));
+    --luna-cb-pressed-fill-b-base: var(--luna-caption-light);
+    /* cb-pressed-fill-c: caption-light */
+    --luna-cb-pressed-fill-c: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.695));
+    --luna-cb-pressed-fill-c-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.395));
+    --luna-cb-pressed-fill-c-base: var(--luna-caption-light);
+    /* cb-pressed-shade: over the face; black toward the bottom right corner */
+    --luna-cb-pressed-shade: transparent;
+    --luna-cb-pressed-shade-k: transparent;
+    --luna-cb-pressed-shade-k-end: rgba(0, 0, 0, calc(var(--luna-press) * 0.1));
+    /* cb-pressed-shade-b: over the face; black toward the bottom right corner */
+    --luna-cb-pressed-shade-b: transparent;
+    --luna-cb-pressed-shade-b-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.02));
+    --luna-cb-pressed-shade-b-k-end: rgba(0, 0, 0, calc(var(--luna-press) * 0.055));
+    /* cb-pressed-inner: caption-light */
+    --luna-cb-pressed-inner: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.05));
+    --luna-cb-pressed-inner-k: rgba(0, 0, 0, calc(0.27 + var(--luna-press) * 0.4));
+    --luna-cb-pressed-inner-base: var(--luna-caption-light);
+    /* cb-pressed-glyph: caption-deep */
+    --luna-cb-pressed-glyph: rgba(255, 255, 255, 0.545);
+    --luna-cb-pressed-glyph-k: transparent;
+    --luna-cb-pressed-glyph-base: var(--luna-caption-deep);
+    /* cb-pressed-etch: caption */
+    --luna-cb-pressed-etch: rgba(255, 255, 255, calc(var(--luna-etch)));
+    --luna-cb-pressed-etch-k: transparent;
+    --luna-cb-pressed-etch-base: var(--luna-caption);
+
+    /* close-ring: close-deep */
+    --luna-close-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.01));
+    --luna-close-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.515));
+    --luna-close-ring-base: var(--luna-close-deep);
+
+    /* close-highlight: close */
+    --luna-close-highlight: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.57));
+    --luna-close-highlight-k: rgba(0, 0, 0, 0.1);
+    --luna-close-highlight-base: var(--luna-close);
+
+    /* close-fill-a: close */
+    --luna-close-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.45));
+    --luna-close-fill-a-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.025));
+    --luna-close-fill-a-base: var(--luna-close);
+    /* close-fill-b: close */
+    --luna-close-fill-b: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.275));
+    --luna-close-fill-b-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.145));
+    --luna-close-fill-b-base: var(--luna-close);
+    /* close-fill-c: close-deep */
+    --luna-close-fill-c: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.43));
+    --luna-close-fill-c-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.175));
+    --luna-close-fill-c-base: var(--luna-close-deep);
+    /* close-shade: over the face; black toward the bottom right corner */
+    --luna-close-shade: transparent;
+    --luna-close-shade-k: rgba(0, 0, 0, calc(0.135 + var(--luna-shade) * 0.145));
+    --luna-close-shade-k-end: rgba(0, 0, 0, calc(var(--luna-shade) * 0.245));
+    /* close-shade-b: over the face; black toward the bottom right corner */
+    --luna-close-shade-b: transparent;
+    --luna-close-shade-b-k: rgba(0, 0, 0, calc(0.065 + var(--luna-shade) * 0.055));
+    --luna-close-shade-b-k-end: rgba(0, 0, 0, calc(0.01 + var(--luna-shade) * 0.01));
+    /* close-inner: over the face; white from the corner to the far end */
+    --luna-close-inner: transparent;
+    --luna-close-inner-end: transparent;
+    --luna-close-inner-k: rgba(0, 0, 0, calc(0.025 + var(--luna-depth) * 0.065));
+    /* close-glyph: text */
+    --luna-close-glyph: rgba(255, 255, 255, 1);
+    --luna-close-glyph-k: transparent;
+    --luna-close-glyph-base: var(--luna-text);
+    /* close-top: close-light, the highlight along the top of the face (lit from above), then the pink band under it */
+    --luna-close-top: transparent;
+    --luna-close-top-k: transparent;
+    --luna-close-top-base: var(--luna-close-light);
+    --luna-close-top-b: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.35));
+    /* close-etch: close */
+    --luna-close-etch: rgba(255, 255, 255, calc(var(--luna-etch) * 0.225));
+    --luna-close-etch-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.66));
+    --luna-close-etch-base: var(--luna-close);
+
+    /* close-hot-ring: close-deep */
+    --luna-close-hot-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.005));
+    --luna-close-hot-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.47));
+    --luna-close-hot-ring-base: var(--luna-close-deep);
+
+    /* close-hot-highlight: close */
+    --luna-close-hot-highlight: rgba(255, 255, 255, calc(var(--luna-hot)));
+    --luna-close-hot-highlight-k: rgba(0, 0, 0, 0.01);
+    --luna-close-hot-highlight-base: var(--luna-close);
+
+    /* close-hot-glow: close-deep */
+    --luna-close-hot-glow: rgba(255, 255, 255, calc(var(--luna-hot) * 0.59));
+    --luna-close-hot-glow-k: transparent;
+    --luna-close-hot-glow-base: var(--luna-close-deep);
+    /* close-hot-fill-a: close */
+    --luna-close-hot-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.015 + var(--luna-hot) * 0.545));
+    --luna-close-hot-fill-a-k: transparent;
+    --luna-close-hot-fill-a-base: var(--luna-close);
+    /* close-hot-fill-b: close */
+    --luna-close-hot-fill-b: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.005 + var(--luna-hot) * 0.235));
+    --luna-close-hot-fill-b-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.02));
+    --luna-close-hot-fill-b-base: var(--luna-close);
+    /* close-hot-fill-c: close */
+    --luna-close-hot-fill-c: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.005 + var(--luna-hot) * 0.155));
+    --luna-close-hot-fill-c-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.12));
+    --luna-close-hot-fill-c-base: var(--luna-close);
+    /* close-hot-shade: over the face; black toward the bottom right corner */
+    --luna-close-hot-shade: transparent;
+    --luna-close-hot-shade-k: rgba(0, 0, 0, calc(0.105 + var(--luna-shade) * 0.08));
+    --luna-close-hot-shade-k-end: rgba(0, 0, 0, calc(var(--luna-shade) * 0.18));
+    /* close-hot-shade-b: over the face; black toward the bottom right corner */
+    --luna-close-hot-shade-b: transparent;
+    --luna-close-hot-shade-b-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.05));
+    --luna-close-hot-shade-b-k-end: rgba(0, 0, 0, calc(var(--luna-shade) * 0.02));
+    /* close-hot-inner: over the face; white from the corner to the far end */
+    --luna-close-hot-inner: transparent;
+    --luna-close-hot-inner-end: transparent;
+    --luna-close-hot-inner-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.03));
+    /* close-hot-glyph: text */
+    --luna-close-hot-glyph: rgba(255, 255, 255, 1);
+    --luna-close-hot-glyph-k: transparent;
+    --luna-close-hot-glyph-base: var(--luna-text);
+    /* close-hot-top: close-light */
+    --luna-close-hot-top: transparent;
+    --luna-close-hot-top-k: transparent;
+    --luna-close-hot-top-base: var(--luna-close-light);
+    --luna-close-hot-top-b: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.125));
+    /* close-hot-etch: close-deep */
+    --luna-close-hot-etch: rgba(255, 255, 255, calc(var(--luna-etch) * 0.445));
+    --luna-close-hot-etch-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.555));
+    --luna-close-hot-etch-base: var(--luna-close-deep);
+
+    /* close-pressed-ring: close-deep */
+    --luna-close-pressed-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.005));
+    --luna-close-pressed-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.465));
+    --luna-close-pressed-ring-base: var(--luna-close-deep);
+    /* close-pressed-fill-a: close-deep */
+    --luna-close-pressed-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.455));
+    --luna-close-pressed-fill-a-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.125));
+    --luna-close-pressed-fill-a-base: var(--luna-close-deep);
+    /* close-pressed-fill-b: close */
+    --luna-close-pressed-fill-b: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.24));
+    --luna-close-pressed-fill-b-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.265));
+    --luna-close-pressed-fill-b-base: var(--luna-close);
+    /* close-pressed-fill-c: close-deep */
+    --luna-close-pressed-fill-c: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.765));
+    --luna-close-pressed-fill-c-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.08));
+    --luna-close-pressed-fill-c-base: var(--luna-close-deep);
+    /* close-pressed-shade: over the face; black toward the bottom right corner */
+    --luna-close-pressed-shade: transparent;
+    --luna-close-pressed-shade-k: rgba(0, 0, 0, 0.005);
+    --luna-close-pressed-shade-k-end: rgba(0, 0, 0, calc(var(--luna-press) * 0.08));
+    /* close-pressed-shade-b: over the face; black toward the bottom right corner */
+    --luna-close-pressed-shade-b: transparent;
+    --luna-close-pressed-shade-b-k: rgba(0, 0, 0, calc(0.005 + var(--luna-press) * 0.015));
+    --luna-close-pressed-shade-b-k-end: rgba(0, 0, 0, calc(var(--luna-press) * 0.045));
+    /* close-pressed-inner: close */
+    --luna-close-pressed-inner: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.135));
+    --luna-close-pressed-inner-k: rgba(0, 0, 0, calc(0.24 + var(--luna-press) * 0.215));
+    --luna-close-pressed-inner-base: var(--luna-close);
+    /* close-pressed-glyph: close-light */
+    --luna-close-pressed-glyph: rgba(255, 255, 255, 0.35);
+    --luna-close-pressed-glyph-k: rgba(0, 0, 0, 0.06);
+    --luna-close-pressed-glyph-base: var(--luna-close-light);
+    /* close-pressed-etch: close-deep */
+    --luna-close-pressed-etch: rgba(255, 255, 255, calc(var(--luna-etch) * 0.43));
+    --luna-close-pressed-etch-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.55));
+    --luna-close-pressed-etch-base: var(--luna-close-deep);
+}
+
+
+/* ---- Window chrome ------------------------------------------------------------------------------ */
+
+/* Lit from above (Silver, Gold): the caption's edges are bevels (2px wide), the frame's sides are
+   bevels, the caption has no glow at its left end (a lit-from-the-left feature), the caption buttons are
+   shaded straight down with no corner highlight and have embossed glyphs, the title has a light emboss. Lit from the top left (the others): the defaults below. */
+.xp-window {
+    --w-edge: 4px;
+    /* The caption's dark bottom lines start where the frame's inner line is (4px in), in every light:
+       under top light the theme's bitmap runs them out to its 2px bevel, past the frame's inner line,
+       which reads as the line cutting into the frame, so they stop at the frame here too. */
+    --w-band-inset: 4px;
+    --w-glow: 100%;
+    --w-el: var(--luna-caption-left); --w-el-k: var(--luna-caption-left-k); --w-el-b: var(--luna-caption-left-base);
+    --w-er: var(--luna-caption-right); --w-er-k: var(--luna-caption-right-k); --w-er-b: var(--luna-caption-right-base);
+    --w-shading: to bottom right;
+    --w-side: 1px;
+    --w-light-size: 9px;
+    --w-etch: 0;
+    --w-ts: var(--luna-caption-shadow-dark); --w-ts-k: var(--luna-caption-shadow-dark-k); --w-ts-b: var(--luna-caption-shadow-dark-base);
+    /* the glyph colours of the pressed buttons: lit from the top left they change (a pale glyph on the darkened face) */
+    --w-pg: var(--luna-cb-pressed-glyph); --w-pg-k: var(--luna-cb-pressed-glyph-k); --w-pg-b: var(--luna-cb-pressed-glyph-base);
+    --w-pgc: var(--luna-close-pressed-glyph); --w-pgc-k: var(--luna-close-pressed-glyph-k); --w-pgc-b: var(--luna-close-pressed-glyph-base);
+}
+.luna-silver .xp-window, .luna-gold .xp-window {
+    --w-edge: 2px;
+    /* The bottom lines start on the frame's inner line, so their first pixel continues it: no
+       lighter end cap here (the theme's end cap belongs to its 2px start, which is not used). */
+    --luna-caption-bottom-end: var(--luna-caption-bottom);
+    --luna-caption-bottom-end-k: var(--luna-caption-bottom-k);
+    --luna-caption-bottom-end-base: var(--luna-caption-bottom-base);
+    --luna-caption-bottom-b-end: var(--luna-caption-bottom-b);
+    --luna-caption-bottom-b-end-k: var(--luna-caption-bottom-b-k);
+    --luna-caption-bottom-b-end-base: var(--luna-caption-bottom-b-base);
+    --w-glow: 0px;
+    --w-el: var(--luna-caption-bevel-left); --w-el-k: var(--luna-caption-bevel-left-k); --w-el-b: var(--luna-caption-bevel-left-base);
+    --w-er: var(--luna-caption-bevel-right); --w-er-k: var(--luna-caption-bevel-right-k); --w-er-b: var(--luna-caption-bevel-right-base);
+    --w-shading: to bottom;
+    --w-side: 0px;
+    --w-light-size: 0px;
+    --w-etch: 1;
+    --w-ts: var(--luna-caption-shadow-light); --w-ts-k: var(--luna-caption-shadow-light-k); --w-ts-b: var(--luna-caption-shadow-light-base);
+    /* lit from above, the glyphs keep their colours when pressed */
+    --w-pg: var(--luna-cb-glyph); --w-pg-k: var(--luna-cb-glyph-k); --w-pg-b: var(--luna-cb-glyph-base);
+    --w-pgc: var(--luna-close-glyph); --w-pgc-k: var(--luna-close-glyph-k); --w-pgc-b: var(--luna-close-glyph-base);
+}
+
+/* Caption: rounded top corners with the window's dark outline along them and down its sides
+   (inset shadows, so they follow the curve), a 2px highlight under the top line, two 1px bands (dimmed
+   toward both corners) and the body gradient. Across, the left end is lit (a dark edge, then a
+   soft glow), the right end darkens over its last 32px into a dark edge; two darker lines close
+   the bottom between the edges (4px wide, 2px lit from above), which run on down into the frame's
+   sides (the lines are layers under the edges, not inset shadows over them). Each line is a gradient
+   whose end stops (the `-end` roles, 1px at each end of the line) close it against the frame: a
+   darker corner in Blue, a lighter transition in Silver. Every paint is its
+   translucent colour over its base. */
+.xp-caption {
+    border-radius: 7px 7px 0 0;
+    background:
+        linear-gradient(to right, var(--w-el-k) 1px, transparent var(--w-edge)),
+        linear-gradient(to right, var(--w-el) 1px, transparent var(--w-edge)),
+        linear-gradient(to right, var(--w-el-b) 1px, transparent var(--w-edge)),
+        linear-gradient(to left, var(--w-er-k) 1px, transparent var(--w-edge)),
+        linear-gradient(to left, var(--w-er) 1px, transparent var(--w-edge)),
+        linear-gradient(to left, var(--w-er-b) 1px, transparent var(--w-edge)),
+        linear-gradient(to right, var(--luna-caption-bottom-b-end-k) 1px, var(--luna-caption-bottom-b-k) 1px calc(100% - 1px), var(--luna-caption-bottom-b-end-k) calc(100% - 1px)) 50% calc(100% - 1px) / calc(100% - 2 * var(--w-band-inset)) 1px no-repeat,
+        linear-gradient(to right, var(--luna-caption-bottom-b-end) 1px, var(--luna-caption-bottom-b) 1px calc(100% - 1px), var(--luna-caption-bottom-b-end) calc(100% - 1px)) 50% calc(100% - 1px) / calc(100% - 2 * var(--w-band-inset)) 1px no-repeat,
+        linear-gradient(to right, var(--luna-caption-bottom-b-end-base) 1px, var(--luna-caption-bottom-b-base) 1px calc(100% - 1px), var(--luna-caption-bottom-b-end-base) calc(100% - 1px)) 50% calc(100% - 1px) / calc(100% - 2 * var(--w-band-inset)) 1px no-repeat,
+        linear-gradient(to right, var(--luna-caption-bottom-end-k) 1px, var(--luna-caption-bottom-k) 1px calc(100% - 1px), var(--luna-caption-bottom-end-k) calc(100% - 1px)) 50% 100% / calc(100% - 2 * var(--w-band-inset)) 1px no-repeat,
+        linear-gradient(to right, var(--luna-caption-bottom-end) 1px, var(--luna-caption-bottom) 1px calc(100% - 1px), var(--luna-caption-bottom-end) calc(100% - 1px)) 50% 100% / calc(100% - 2 * var(--w-band-inset)) 1px no-repeat,
+        linear-gradient(to right, var(--luna-caption-bottom-end-base) 1px, var(--luna-caption-bottom-base) 1px calc(100% - 1px), var(--luna-caption-bottom-end-base) calc(100% - 1px)) 50% 100% / calc(100% - 2 * var(--w-band-inset)) 1px no-repeat,
+        linear-gradient(to right, transparent 2px, var(--luna-caption-glow-k) 12px, transparent 28px) 0 0 / var(--w-glow) 100% no-repeat,
+        linear-gradient(to right, transparent 2px, var(--luna-caption-glow) 12px, transparent 28px) 0 0 / var(--w-glow) 100% no-repeat,
+        linear-gradient(to right, transparent 2px, var(--luna-caption-glow-base) 12px, transparent 28px) 0 0 / var(--w-glow) 100% no-repeat,
+        linear-gradient(to left, var(--luna-caption-shade-k), transparent 32px),
+        linear-gradient(to left, var(--luna-caption-shade), transparent 32px),
+        linear-gradient(to left, var(--luna-caption-shade-base), transparent 32px),
+        linear-gradient(to right, var(--luna-caption-corner-k) 0, transparent 12px, transparent calc(100% - 12px), var(--luna-caption-corner-r-k)) 0 0 / 100% 5px no-repeat,
+        linear-gradient(to right, var(--luna-caption-corner) 0, transparent 12px, transparent calc(100% - 12px), var(--luna-caption-corner-r)) 0 0 / 100% 5px no-repeat,
+        linear-gradient(to right, var(--luna-caption-corner-base) 0, transparent 12px, transparent calc(100% - 12px), var(--luna-caption-corner-r-base)) 0 0 / 100% 5px no-repeat,
+        linear-gradient(to bottom, var(--luna-caption-light-a-k) 1px, var(--luna-caption-light-b-k) 1px) 0 1px / 100% 2px no-repeat,
+        linear-gradient(to bottom, var(--luna-caption-light-a) 1px, var(--luna-caption-light-b) 1px) 0 1px / 100% 2px no-repeat,
+        linear-gradient(to bottom, var(--luna-caption-light-a-base) 1px, var(--luna-caption-light-b-base) 1px) 0 1px / 100% 2px no-repeat,
+        linear-gradient(to bottom, var(--luna-caption-a-k) 3px, var(--luna-caption-b-k) 7px, var(--luna-caption-c-k) 16px, var(--luna-caption-d-k) 24px, var(--luna-caption-e-k) 28px),
+        linear-gradient(to bottom, var(--luna-caption-a) 3px, var(--luna-caption-b) 7px, var(--luna-caption-c) 16px, var(--luna-caption-d) 24px, var(--luna-caption-e) 28px),
+        linear-gradient(to bottom, var(--luna-caption-a-base) 3px, var(--luna-caption-b-base) 7px, var(--luna-caption-c-base) 16px, var(--luna-caption-d-base) 24px, var(--luna-caption-e-base) 28px);
+    box-shadow:
+        inset 0 1px var(--luna-caption-top-k), inset 0 1px var(--luna-caption-top), inset 0 1px var(--luna-caption-top-base),
+        inset 1px 0 var(--luna-caption-outline-k), inset 1px 0 var(--luna-caption-outline), inset 1px 0 var(--luna-caption-outline-base),
+        inset -1px 0 var(--luna-caption-outline-r-k), inset -1px 0 var(--luna-caption-outline-r), inset -1px 0 var(--luna-caption-outline-r-base);
+}
+/* The title's shadow: dark below right when lit from the top left; lit from above, a light emboss. */
+.xp-title { color: var(--luna-text); text-shadow: 1px 1px var(--w-ts-k), 1px 1px var(--w-ts), 1px 1px var(--w-ts-b); }
+
+/* Frame: left, right and bottom, 5px: a 4px band from the window's outline inward (the outline, a
+   highlight line, and the face shaded across) and an inner line, which is the client area's
+   border (the client's own border is transparent and shows it). The band's profile, from the outer
+   edge in, is set by the light: lit from the top left (Blue, Olive Green, Purple) the left side is
+   the lit one (dark outline, a bright line, then the face) and the right and bottom sides the
+   shaded ones (the face darkening to the outline); lit from above (Silver) the sides are a bevel
+   (outline, white lines, outline) and the bottom its own (the theme's bottom band has its grey
+   step one pixel further out). A profile is a stop list in a custom property, over a flat base of
+   its own, so a side only picks which one it uses. The sides meet the bottom in a mitre, as the
+   theme's corners do: the bottom band runs the full width, and the sides (pseudo-elements over
+   it) end in a 45 degree cut that lets the bottom show in the corner. */
+.xp-window {
+    --w-lit-k: var(--luna-frame-lit-outline-k) 1px, var(--luna-frame-lit-light-k) 1px 2px, var(--luna-frame-lit-a-k) 2px, var(--luna-frame-lit-b-k) 3px, var(--luna-frame-lit-c-k) 4px, var(--luna-frame-lit-inner-k) 4px 5px;
+    --w-lit: var(--luna-frame-lit-outline) 1px, var(--luna-frame-lit-light) 1px 2px, var(--luna-frame-lit-a) 2px, var(--luna-frame-lit-b) 3px, var(--luna-frame-lit-c) 4px, var(--luna-frame-lit-inner) 4px 5px;
+    --w-lit-b: var(--luna-frame-lit-outline-base) 1px, var(--luna-frame-lit-light-base) 1px 2px, var(--luna-frame-lit-a-base) 2px, var(--luna-frame-lit-b-base) 3px, var(--luna-frame-lit-c-base) 4px, var(--luna-frame-lit-inner-base) 4px 5px;
+    --w-shade-k: var(--luna-frame-shade-outline-k) 1px, var(--luna-frame-shade-light-k) 1px 2px, var(--luna-frame-shade-a-k) 2px, var(--luna-frame-shade-b-k) 3px, var(--luna-frame-shade-c-k) 4px, var(--luna-frame-shade-inner-k) 4px 5px;
+    --w-shade: var(--luna-frame-shade-outline) 1px, var(--luna-frame-shade-light) 1px 2px, var(--luna-frame-shade-a) 2px, var(--luna-frame-shade-b) 3px, var(--luna-frame-shade-c) 4px, var(--luna-frame-shade-inner) 4px 5px;
+    --w-shade-b: var(--luna-frame-shade-outline-base) 1px, var(--luna-frame-shade-light-base) 1px 2px, var(--luna-frame-shade-a-base) 2px, var(--luna-frame-shade-b-base) 3px, var(--luna-frame-shade-c-base) 4px, var(--luna-frame-shade-inner-base) 4px 5px;
+    --w-bevel-k: var(--luna-frame-bevel-outline-k) 1px, var(--luna-frame-bevel-light-k) 1px 2px, var(--luna-frame-bevel-a-k) 2px, var(--luna-frame-bevel-b-k) 3px, var(--luna-frame-bevel-c-k) 4px, var(--luna-frame-bevel-inner-k) 4px 5px;
+    --w-bevel: var(--luna-frame-bevel-outline) 1px, var(--luna-frame-bevel-light) 1px 2px, var(--luna-frame-bevel-a) 2px, var(--luna-frame-bevel-b) 3px, var(--luna-frame-bevel-c) 4px, var(--luna-frame-bevel-inner) 4px 5px;
+    --w-bevel-b: var(--luna-frame-bevel-outline-base) 1px, var(--luna-frame-bevel-light-base) 1px 2px, var(--luna-frame-bevel-a-base) 2px, var(--luna-frame-bevel-b-base) 3px, var(--luna-frame-bevel-c-base) 4px, var(--luna-frame-bevel-inner-base) 4px 5px;
+    --w-bevel-bottom-k: var(--luna-frame-bevel-bottom-outline-k) 1px, var(--luna-frame-bevel-bottom-light-k) 1px 2px, var(--luna-frame-bevel-bottom-a-k) 2px, var(--luna-frame-bevel-bottom-b-k) 3px, var(--luna-frame-bevel-bottom-c-k) 4px, var(--luna-frame-bevel-bottom-inner-k) 4px 5px;
+    --w-bevel-bottom: var(--luna-frame-bevel-bottom-outline) 1px, var(--luna-frame-bevel-bottom-light) 1px 2px, var(--luna-frame-bevel-bottom-a) 2px, var(--luna-frame-bevel-bottom-b) 3px, var(--luna-frame-bevel-bottom-c) 4px, var(--luna-frame-bevel-bottom-inner) 4px 5px;
+    --w-bevel-bottom-b: var(--luna-frame-bevel-bottom-outline-base) 1px, var(--luna-frame-bevel-bottom-light-base) 1px 2px, var(--luna-frame-bevel-bottom-a-base) 2px, var(--luna-frame-bevel-bottom-b-base) 3px, var(--luna-frame-bevel-bottom-c-base) 4px, var(--luna-frame-bevel-bottom-inner-base) 4px 5px;
+    --w-fl-k: var(--w-lit-k); --w-fl: var(--w-lit); --w-fl-b: var(--w-lit-b);
+    --w-fr-k: var(--w-shade-k); --w-fr: var(--w-shade); --w-fr-b: var(--w-shade-b);
+    --w-fb-k: var(--w-shade-k); --w-fb: var(--w-shade); --w-fb-b: var(--w-shade-b);
+}
+.luna-silver .xp-window, .luna-gold .xp-window {
+    --w-fl-k: var(--w-bevel-k); --w-fl: var(--w-bevel); --w-fl-b: var(--w-bevel-b);
+    --w-fr-k: var(--w-bevel-k); --w-fr: var(--w-bevel); --w-fr-b: var(--w-bevel-b);
+    --w-fb-k: var(--w-bevel-bottom-k); --w-fb: var(--w-bevel-bottom); --w-fb-b: var(--w-bevel-bottom-b);
+}
+.xp-frame {
+    position: relative;
+    background:
+        linear-gradient(to top, var(--w-fb-k)) 0 100% / 100% 5px no-repeat,
+        linear-gradient(to top, var(--w-fb)) 0 100% / 100% 5px no-repeat,
+        linear-gradient(to top, var(--w-fb-b)) 0 100% / 100% 5px no-repeat;
+}
+.xp-frame::before, .xp-frame::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    pointer-events: none;
+}
+.xp-frame::before {
+    left: 0;
+    background:
+        linear-gradient(to right, var(--w-fl-k)),
+        linear-gradient(to right, var(--w-fl)),
+        linear-gradient(to right, var(--w-fl-b));
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), 0 100%);
+}
+.xp-frame::after {
+    right: 0;
+    background:
+        linear-gradient(to left, var(--w-fr-k)),
+        linear-gradient(to left, var(--w-fr)),
+        linear-gradient(to left, var(--w-fr-b));
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 calc(100% - 5px));
+}
+/* The client area's 1px border is transparent: the frame's inner line shows through (its own
+   background stops at the padding box). */
+.xp-client { border: 1px solid transparent; border-top: 0; }
+.xp-window .xp-client { background-clip: padding-box; }
+
+/* Caption buttons: a ring with rounded corners (white; dark in Silver) around a glossy face: a body
+   shaded along --w-shading with a highlight in its top left corner, an inner line along the top
+   (and left) and a shade along the bottom (and right) inside the ring. The lines are not opaque: each
+   is a translucent white and black paint over the face, one of the two a ramp, so the face hue carries through and the edge
+   grades as the theme's does (the inner line is lit at the top left corner and darkens along the
+   edge; the shades darken toward the bottom right corner). Lit from the top left:
+   diagonal shading, a corner highlight, shades on the right and bottom. Lit from above: the same
+   on both sides (--w-side: 0px removes the side shade and the side line, --w-light-size: 0px the
+   corner highlight) and embossed glyphs. Hot adds a glow in the bottom right; pressed has no
+   highlight and an inner shadow along the top (left) instead. Every paint is black over white over
+   its base (see the top): a gradient is three layers, a ring is a base layer and a white
+   layer across the border box with the black as the border colour on top, a shadow is three
+   shadows. The slots --b-* are set per button and state below. */
+.xp-min, .xp-max, .xp-close {
+    /* the shade (1px at the edge) and the second shade (1px inside it), bottom then right; black over white,
+       the black ramping up toward the bottom right, the white down from its start. The bottom runs
+       the full width, the right shade stops short of its corner. */
+    --b-shade-edges:
+        linear-gradient(to right, var(--b-shade-k), var(--b-shade-k-end)) 0 100% / 100% 1px no-repeat padding-box,
+        linear-gradient(var(--b-shade), var(--b-shade)) 0 100% / 100% 1px no-repeat padding-box,
+        linear-gradient(to bottom, var(--b-shade-k), var(--b-shade-k-end)) 100% 0 / var(--w-side) calc(100% - 1px) no-repeat padding-box,
+        linear-gradient(var(--b-shade), var(--b-shade)) 100% 0 / var(--w-side) calc(100% - 1px) no-repeat padding-box,
+        linear-gradient(to right, var(--b-shade2-k), var(--b-shade2-k-end)) 0 calc(100% - 1px) / calc(100% - var(--w-side)) 1px no-repeat padding-box,
+        linear-gradient(var(--b-shade2), var(--b-shade2)) 0 calc(100% - 1px) / calc(100% - var(--w-side)) 1px no-repeat padding-box,
+        linear-gradient(to bottom, var(--b-shade2-k), var(--b-shade2-k-end)) calc(100% - 1px) 0 / var(--w-side) calc(100% - 2px) no-repeat padding-box,
+        linear-gradient(var(--b-shade2), var(--b-shade2)) calc(100% - 1px) 0 / var(--w-side) calc(100% - 2px) no-repeat padding-box;
+    /* the inner line along the top, then down the left: the white lit at the corner, fading along the edge */
+    --b-inner-edges:
+        linear-gradient(var(--b-inner-k), var(--b-inner-k)) 0 0 / 100% 1px no-repeat padding-box,
+        linear-gradient(to right, var(--b-inner), var(--b-inner-end)) 0 0 / 100% 1px no-repeat padding-box,
+        linear-gradient(var(--b-inner-k), var(--b-inner-k)) 0 1px / var(--w-side) calc(100% - 1px) no-repeat padding-box,
+        linear-gradient(to bottom, var(--b-inner), var(--b-inner-end)) 0 1px / var(--w-side) calc(100% - 1px) no-repeat padding-box;
+    --b-top-edges: linear-gradient(transparent, transparent);
+    box-sizing: border-box;
+    border: 1px solid var(--b-ring-k);
+    border-radius: 3px;
+    background:
+        var(--b-shade-edges),
+        var(--b-inner-edges),
+        var(--b-top-edges),
+        radial-gradient(circle at 3px 3px, var(--b-light-k), transparent var(--w-light-size)) padding-box no-repeat,
+        radial-gradient(circle at 3px 3px, var(--b-light), transparent var(--w-light-size)) padding-box no-repeat,
+        radial-gradient(circle at 3px 3px, var(--b-light-b), transparent var(--w-light-size)) padding-box no-repeat,
+        linear-gradient(var(--w-shading), var(--b-fill-a-k), var(--b-fill-b-k), var(--b-fill-c-k)) padding-box,
+        linear-gradient(var(--w-shading), var(--b-fill-a), var(--b-fill-b), var(--b-fill-c)) padding-box,
+        linear-gradient(var(--w-shading), var(--b-fill-a-b), var(--b-fill-b-b), var(--b-fill-c-b)) padding-box,
+        linear-gradient(var(--b-ring), var(--b-ring)) border-box,
+        linear-gradient(var(--b-ring-b), var(--b-ring-b)) border-box;
+}
+.xp-min:hover, .xp-max:hover, .xp-close:hover {
+    background:
+        var(--b-shade-edges),
+        var(--b-inner-edges),
+        var(--b-top-edges),
+        radial-gradient(circle at 3px 3px, var(--b-light-k), transparent var(--w-light-size)) padding-box no-repeat,
+        radial-gradient(circle at 3px 3px, var(--b-light), transparent var(--w-light-size)) padding-box no-repeat,
+        radial-gradient(circle at 3px 3px, var(--b-light-b), transparent var(--w-light-size)) padding-box no-repeat,
+        radial-gradient(circle at 65% 70%, var(--b-glow-k), transparent 8px) padding-box no-repeat,
+        radial-gradient(circle at 65% 70%, var(--b-glow), transparent 8px) padding-box no-repeat,
+        radial-gradient(circle at 65% 70%, var(--b-glow-b), transparent 8px) padding-box no-repeat,
+        linear-gradient(var(--w-shading), var(--b-fill-a-k), var(--b-fill-b-k), var(--b-fill-c-k)) padding-box,
+        linear-gradient(var(--w-shading), var(--b-fill-a), var(--b-fill-b), var(--b-fill-c)) padding-box,
+        linear-gradient(var(--w-shading), var(--b-fill-a-b), var(--b-fill-b-b), var(--b-fill-c-b)) padding-box,
+        linear-gradient(var(--b-ring), var(--b-ring)) border-box,
+        linear-gradient(var(--b-ring-b), var(--b-ring-b)) border-box;
+}
+.xp-min:active, .xp-max:active, .xp-close:active {
+    background:
+        var(--b-shade-edges),
+        var(--b-top-edges),
+        linear-gradient(var(--w-shading), var(--b-fill-a-k), var(--b-fill-b-k), var(--b-fill-c-k)) padding-box,
+        linear-gradient(var(--w-shading), var(--b-fill-a), var(--b-fill-b), var(--b-fill-c)) padding-box,
+        linear-gradient(var(--w-shading), var(--b-fill-a-b), var(--b-fill-b-b), var(--b-fill-c-b)) padding-box,
+        linear-gradient(var(--b-ring), var(--b-ring)) border-box,
+        linear-gradient(var(--b-ring-b), var(--b-ring-b)) border-box;
+    box-shadow:
+        inset calc(2 * var(--w-side)) 2px 3px var(--b-inner-k), inset calc(2 * var(--w-side)) 2px 3px var(--b-inner), inset calc(2 * var(--w-side)) 2px 3px var(--b-inner-b);
+}
+.xp-min, .xp-max {
+    --b-ring: var(--luna-cb-ring);
+    --b-ring-k: var(--luna-cb-ring-k);
+    --b-ring-b: var(--luna-cb-ring-base);
+    --b-light: var(--luna-cb-light);
+    --b-light-k: var(--luna-cb-light-k);
+    --b-light-b: var(--luna-cb-light-base);
+    --b-fill-a: var(--luna-cb-fill-a);
+    --b-fill-a-k: var(--luna-cb-fill-a-k);
+    --b-fill-a-b: var(--luna-cb-fill-a-base);
+    --b-fill-b: var(--luna-cb-fill-b);
+    --b-fill-b-k: var(--luna-cb-fill-b-k);
+    --b-fill-b-b: var(--luna-cb-fill-b-base);
+    --b-fill-c: var(--luna-cb-fill-c);
+    --b-fill-c-k: var(--luna-cb-fill-c-k);
+    --b-fill-c-b: var(--luna-cb-fill-c-base);
+    --b-shade: var(--luna-cb-shade);
+    --b-shade-k: var(--luna-cb-shade-k);
+    --b-shade-k-end: var(--luna-cb-shade-k-end);
+    --b-shade2: var(--luna-cb-shade-b);
+    --b-shade2-k: var(--luna-cb-shade-b-k);
+    --b-shade2-k-end: var(--luna-cb-shade-b-k-end);
+    --b-inner: var(--luna-cb-inner);
+    --b-inner-end: var(--luna-cb-inner-end);
+    --b-inner-k: var(--luna-cb-inner-k);
+    --b-glyph: var(--luna-cb-glyph);
+    --b-glyph-k: var(--luna-cb-glyph-k);
+    --b-glyph-b: var(--luna-cb-glyph-base);
+    --b-etch: var(--luna-cb-etch);
+    --b-etch-k: var(--luna-cb-etch-k);
+    --b-etch-b: var(--luna-cb-etch-base);
+    --b-gf: var(--luna-cb-gfill);
+    --b-gf-k: var(--luna-cb-gfill-k);
+    --b-gf-b: var(--luna-cb-gfill-base);
+}
+.xp-min:hover, .xp-max:hover {
+    --b-ring: var(--luna-cb-hot-ring);
+    --b-ring-k: var(--luna-cb-hot-ring-k);
+    --b-ring-b: var(--luna-cb-hot-ring-base);
+    --b-light: var(--luna-cb-hot-light);
+    --b-light-k: var(--luna-cb-hot-light-k);
+    --b-light-b: var(--luna-cb-hot-light-base);
+    --b-glow: var(--luna-cb-hot-glow);
+    --b-glow-k: var(--luna-cb-hot-glow-k);
+    --b-glow-b: var(--luna-cb-hot-glow-base);
+    --b-fill-a: var(--luna-cb-hot-fill-a);
+    --b-fill-a-k: var(--luna-cb-hot-fill-a-k);
+    --b-fill-a-b: var(--luna-cb-hot-fill-a-base);
+    --b-fill-b: var(--luna-cb-hot-fill-b);
+    --b-fill-b-k: var(--luna-cb-hot-fill-b-k);
+    --b-fill-b-b: var(--luna-cb-hot-fill-b-base);
+    --b-fill-c: var(--luna-cb-hot-fill-c);
+    --b-fill-c-k: var(--luna-cb-hot-fill-c-k);
+    --b-fill-c-b: var(--luna-cb-hot-fill-c-base);
+    --b-shade: var(--luna-cb-hot-shade);
+    --b-shade-k: var(--luna-cb-hot-shade-k);
+    --b-shade-k-end: var(--luna-cb-hot-shade-k-end);
+    --b-shade2: var(--luna-cb-hot-shade-b);
+    --b-shade2-k: var(--luna-cb-hot-shade-b-k);
+    --b-shade2-k-end: var(--luna-cb-hot-shade-b-k-end);
+    --b-inner: var(--luna-cb-hot-inner);
+    --b-inner-end: var(--luna-cb-hot-inner-end);
+    --b-inner-k: var(--luna-cb-hot-inner-k);
+    --b-glyph: var(--luna-cb-hot-glyph);
+    --b-glyph-k: var(--luna-cb-hot-glyph-k);
+    --b-glyph-b: var(--luna-cb-hot-glyph-base);
+    --b-etch: var(--luna-cb-hot-etch);
+    --b-etch-k: var(--luna-cb-hot-etch-k);
+    --b-etch-b: var(--luna-cb-hot-etch-base);
+}
+.xp-min:active, .xp-max:active {
+    --b-ring: var(--luna-cb-pressed-ring);
+    --b-ring-k: var(--luna-cb-pressed-ring-k);
+    --b-ring-b: var(--luna-cb-pressed-ring-base);
+    --b-fill-a: var(--luna-cb-pressed-fill-a);
+    --b-fill-a-k: var(--luna-cb-pressed-fill-a-k);
+    --b-fill-a-b: var(--luna-cb-pressed-fill-a-base);
+    --b-fill-b: var(--luna-cb-pressed-fill-b);
+    --b-fill-b-k: var(--luna-cb-pressed-fill-b-k);
+    --b-fill-b-b: var(--luna-cb-pressed-fill-b-base);
+    --b-fill-c: var(--luna-cb-pressed-fill-c);
+    --b-fill-c-k: var(--luna-cb-pressed-fill-c-k);
+    --b-fill-c-b: var(--luna-cb-pressed-fill-c-base);
+    --b-shade: var(--luna-cb-pressed-shade);
+    --b-shade-k: var(--luna-cb-pressed-shade-k);
+    --b-shade-k-end: var(--luna-cb-pressed-shade-k-end);
+    --b-shade2: var(--luna-cb-pressed-shade-b);
+    --b-shade2-k: var(--luna-cb-pressed-shade-b-k);
+    --b-shade2-k-end: var(--luna-cb-pressed-shade-b-k-end);
+    --b-inner: var(--luna-cb-pressed-inner);
+    --b-inner-k: var(--luna-cb-pressed-inner-k);
+    --b-inner-b: var(--luna-cb-pressed-inner-base);
+    --b-glyph: var(--w-pg);
+    --b-glyph-k: var(--w-pg-k);
+    --b-glyph-b: var(--w-pg-b);
+    --b-etch: var(--luna-cb-pressed-etch);
+    --b-etch-k: var(--luna-cb-pressed-etch-k);
+    --b-etch-b: var(--luna-cb-pressed-etch-base);
+}
+.xp-close {
+    --b-ring: var(--luna-close-ring);
+    --b-ring-k: var(--luna-close-ring-k);
+    --b-ring-b: var(--luna-close-ring-base);
+    --b-light: var(--luna-close-highlight);
+    --b-light-k: var(--luna-close-highlight-k);
+    --b-light-b: var(--luna-close-highlight-base);
+    --b-fill-a: var(--luna-close-fill-a);
+    --b-fill-a-k: var(--luna-close-fill-a-k);
+    --b-fill-a-b: var(--luna-close-fill-a-base);
+    --b-fill-b: var(--luna-close-fill-b);
+    --b-fill-b-k: var(--luna-close-fill-b-k);
+    --b-fill-b-b: var(--luna-close-fill-b-base);
+    --b-fill-c: var(--luna-close-fill-c);
+    --b-fill-c-k: var(--luna-close-fill-c-k);
+    --b-fill-c-b: var(--luna-close-fill-c-base);
+    --b-shade: var(--luna-close-shade);
+    --b-shade-k: var(--luna-close-shade-k);
+    --b-shade-k-end: var(--luna-close-shade-k-end);
+    --b-shade2: var(--luna-close-shade-b);
+    --b-shade2-k: var(--luna-close-shade-b-k);
+    --b-shade2-k-end: var(--luna-close-shade-b-k-end);
+    --b-inner: var(--luna-close-inner);
+    --b-inner-end: var(--luna-close-inner-end);
+    --b-inner-k: var(--luna-close-inner-k);
+    --b-glyph: var(--luna-close-glyph);
+    --b-glyph-k: var(--luna-close-glyph-k);
+    --b-glyph-b: var(--luna-close-glyph-base);
+    --b-etch: var(--luna-close-etch);
+    --b-etch-k: var(--luna-close-etch-k);
+    --b-etch-b: var(--luna-close-etch-base);
+    --b-top: var(--luna-close-top);
+    --b-top-k: var(--luna-close-top-k);
+    --b-top-b: var(--luna-close-top-base);
+    --b-top2: var(--luna-close-top-b);
+    --b-top-y: 0px;
+    --b-top-edges:
+        linear-gradient(to right, transparent, var(--b-top-k) 3px, var(--b-top-k) calc(100% - 3px), transparent) 0 var(--b-top-y) / 100% calc(var(--w-etch) * 1px) no-repeat padding-box,
+        linear-gradient(to right, transparent, var(--b-top) 3px, var(--b-top) calc(100% - 3px), transparent) 0 var(--b-top-y) / 100% calc(var(--w-etch) * 1px) no-repeat padding-box,
+        linear-gradient(to right, transparent, var(--b-top-b) 3px, var(--b-top-b) calc(100% - 3px), transparent) 0 var(--b-top-y) / 100% calc(var(--w-etch) * 1px) no-repeat padding-box,
+        linear-gradient(to right, transparent 2px, var(--b-top2) 3px, var(--b-top2) calc(100% - 3px), transparent calc(100% - 2px)) 0 calc(var(--b-top-y) + 1px) / 100% calc(var(--w-etch) * 1px) no-repeat padding-box;
+}
+.xp-close:hover {
+    --b-ring: var(--luna-close-hot-ring);
+    --b-ring-k: var(--luna-close-hot-ring-k);
+    --b-ring-b: var(--luna-close-hot-ring-base);
+    --b-light: var(--luna-close-hot-highlight);
+    --b-light-k: var(--luna-close-hot-highlight-k);
+    --b-light-b: var(--luna-close-hot-highlight-base);
+    --b-glow: var(--luna-close-hot-glow);
+    --b-glow-k: var(--luna-close-hot-glow-k);
+    --b-glow-b: var(--luna-close-hot-glow-base);
+    --b-fill-a: var(--luna-close-hot-fill-a);
+    --b-fill-a-k: var(--luna-close-hot-fill-a-k);
+    --b-fill-a-b: var(--luna-close-hot-fill-a-base);
+    --b-fill-b: var(--luna-close-hot-fill-b);
+    --b-fill-b-k: var(--luna-close-hot-fill-b-k);
+    --b-fill-b-b: var(--luna-close-hot-fill-b-base);
+    --b-fill-c: var(--luna-close-hot-fill-c);
+    --b-fill-c-k: var(--luna-close-hot-fill-c-k);
+    --b-fill-c-b: var(--luna-close-hot-fill-c-base);
+    --b-shade: var(--luna-close-hot-shade);
+    --b-shade-k: var(--luna-close-hot-shade-k);
+    --b-shade-k-end: var(--luna-close-hot-shade-k-end);
+    --b-shade2: var(--luna-close-hot-shade-b);
+    --b-shade2-k: var(--luna-close-hot-shade-b-k);
+    --b-shade2-k-end: var(--luna-close-hot-shade-b-k-end);
+    --b-inner: var(--luna-close-hot-inner);
+    --b-inner-end: var(--luna-close-hot-inner-end);
+    --b-inner-k: var(--luna-close-hot-inner-k);
+    --b-glyph: var(--luna-close-hot-glyph);
+    --b-glyph-k: var(--luna-close-hot-glyph-k);
+    --b-glyph-b: var(--luna-close-hot-glyph-base);
+    --b-etch: var(--luna-close-hot-etch);
+    --b-etch-k: var(--luna-close-hot-etch-k);
+    --b-etch-b: var(--luna-close-hot-etch-base);
+    --b-top: var(--luna-close-hot-top);
+    --b-top-k: var(--luna-close-hot-top-k);
+    --b-top-b: var(--luna-close-hot-top-base);
+    --b-top2: var(--luna-close-hot-top-b);
+}
+.xp-close:active {
+    --b-ring: var(--luna-close-pressed-ring);
+    --b-ring-k: var(--luna-close-pressed-ring-k);
+    --b-ring-b: var(--luna-close-pressed-ring-base);
+    --b-fill-a: var(--luna-close-pressed-fill-a);
+    --b-fill-a-k: var(--luna-close-pressed-fill-a-k);
+    --b-fill-a-b: var(--luna-close-pressed-fill-a-base);
+    --b-fill-b: var(--luna-close-pressed-fill-b);
+    --b-fill-b-k: var(--luna-close-pressed-fill-b-k);
+    --b-fill-b-b: var(--luna-close-pressed-fill-b-base);
+    --b-fill-c: var(--luna-close-pressed-fill-c);
+    --b-fill-c-k: var(--luna-close-pressed-fill-c-k);
+    --b-fill-c-b: var(--luna-close-pressed-fill-c-base);
+    --b-shade: var(--luna-close-pressed-shade);
+    --b-shade-k: var(--luna-close-pressed-shade-k);
+    --b-shade-k-end: var(--luna-close-pressed-shade-k-end);
+    --b-shade2: var(--luna-close-pressed-shade-b);
+    --b-shade2-k: var(--luna-close-pressed-shade-b-k);
+    --b-shade2-k-end: var(--luna-close-pressed-shade-b-k-end);
+    --b-inner: var(--luna-close-pressed-inner);
+    --b-inner-k: var(--luna-close-pressed-inner-k);
+    --b-inner-b: var(--luna-close-pressed-inner-base);
+    --b-glyph: var(--w-pgc);
+    --b-glyph-k: var(--w-pgc-k);
+    --b-glyph-b: var(--w-pgc-b);
+    --b-etch: var(--luna-close-pressed-etch);
+    --b-etch-k: var(--luna-close-pressed-etch-k);
+    --b-etch-b: var(--luna-close-pressed-etch-base);
+    --b-top2: transparent;
+    --b-top-y: 1px;
+}
+/* Glyphs: the 13px designs of the theme, built from boxes that are placed in whole CSS px inside the
+   button and snap to device pixels exactly like the button's own border ring does, so they stay
+   centred in it at fractional device pixel ratios (a mask would be painted unsnapped). Each paint is
+   three layers, black (-k) over white over its base (-b), like everything else here. The close X is two
+   bands, the second under the first: the opaque base of the first hides it where they cross.
+   minimize: a 7x3 bar. maximize: an 11x11 frame, 3px top band and 1px sides, as four rectangles.
+   close: an 11x11 box with two diagonal bands, a 3px horizontal run each (2.12px across), whose edges are
+   a 0.7px ramp (half a pixel diagonal) so they are smooth at every device pixel ratio. */
+.xp-min::before, .xp-max::before, .xp-close::before,
+.xp-min::after, .xp-max::after, .xp-close::after {
+    content: "";
+    position: absolute;
+    background-repeat: no-repeat;
+}
+.xp-min::before, .xp-max::before, .xp-close::before {
+    z-index: 1;
+    /* the fill of the embossed glyphs (the minimize bar, the maximize top band): the glyph box less its dark right
+       column, 2px tall, under its dark top line (no fill when lit from the top left) */
+    --gf-size: calc((100% - 1px) * var(--w-etch)) calc(2px * var(--w-etch));
+    --gf-k: var(--b-gf-k); --gf-m: var(--b-gf); --gf-b: var(--b-gf-b);
+    --g-k: linear-gradient(var(--b-glyph-k), var(--b-glyph-k));
+    --g-m: linear-gradient(var(--b-glyph), var(--b-glyph));
+    --g-b: linear-gradient(var(--b-glyph-b), var(--b-glyph-b));
+    --d-k: var(--b-glyph-k);
+    --d-m: var(--b-glyph);
+    --d-b: var(--b-glyph-b);
+}
+/* Lit from above, the glyphs are embossed: a second copy a pixel to the side, under the glyph
+   (hidden when lit from the top left). */
+.xp-min::after, .xp-max::after, .xp-close::after {
+    --gf-size: 0 0;
+    --gf-k: var(--b-etch-k); --gf-m: var(--b-etch); --gf-b: var(--b-etch-b);
+    opacity: var(--w-etch);
+    --g-k: linear-gradient(var(--b-etch-k), var(--b-etch-k));
+    --g-m: linear-gradient(var(--b-etch), var(--b-etch));
+    --g-b: linear-gradient(var(--b-etch-b), var(--b-etch-b));
+    --d-k: var(--b-etch-k);
+    --d-m: var(--b-etch);
+    --d-b: var(--b-etch-b);
+}
+/* positions are in the padding box: the border box position minus the 1px border */
+.xp-min::before, .xp-min::after {
+    width: 7px; height: 3px; top: 12px; left: 4px;
+    background:
+        linear-gradient(var(--gf-k), var(--gf-k)) 0 1px / var(--gf-size),
+        linear-gradient(var(--gf-m), var(--gf-m)) 0 1px / var(--gf-size),
+        linear-gradient(var(--gf-b), var(--gf-b)) 0 1px / var(--gf-size),
+        var(--g-k), var(--g-m), var(--g-b);
+    background-repeat: no-repeat;
+}
+.xp-min::after { top: 13px; left: 3px; }
+.xp-max::before, .xp-max::after, .xp-close::before, .xp-close::after { width: 11px; height: 11px; top: 4px; left: 4px; }
+.xp-max::after { top: 5px; left: 3px; }
+.xp-close::after { top: 3px; left: 3px; width: 13px; height: 12px; }
+.xp-max::before, .xp-max::after {
+    background-image: linear-gradient(var(--gf-k), var(--gf-k)), linear-gradient(var(--gf-m), var(--gf-m)), linear-gradient(var(--gf-b), var(--gf-b)), var(--g-k), var(--g-k), var(--g-k), var(--g-k), var(--g-m), var(--g-m), var(--g-m), var(--g-m), var(--g-b), var(--g-b), var(--g-b), var(--g-b);
+    background-size: var(--gf-size), var(--gf-size), var(--gf-size), var(--fr-size), var(--fr-size), var(--fr-size);
+    background-position: 0 1px, 0 1px, 0 1px, var(--fr-pos), var(--fr-pos), var(--fr-pos);
+}
+.xp-max::before, .xp-max::after {
+    /* top band, sides below it, bottom line */
+    --fr-size: 100% 3px, 1px calc(100% - 4px), 1px calc(100% - 4px), 100% 1px;
+    --fr-pos: 0 0, 0 3px, 100% 3px, 0 100%;
+}
+.xp-close::before, .xp-close::after {
+    border-radius: 1.2px; /* the theme's glyph has soft corner pixels */
+    background-image:
+        linear-gradient(45deg, transparent calc(50% - 1.414px), var(--d-k) calc(50% - 0.707px), var(--d-k) calc(50% + 0.707px), transparent calc(50% + 1.414px)),
+        linear-gradient(45deg, transparent calc(50% - 1.414px), var(--d-m) calc(50% - 0.707px), var(--d-m) calc(50% + 0.707px), transparent calc(50% + 1.414px)),
+        linear-gradient(45deg, transparent calc(50% - 1.414px), var(--d-b) calc(50% - 0.707px), var(--d-b) calc(50% + 0.707px), transparent calc(50% + 1.414px)),
+        linear-gradient(-45deg, transparent calc(50% - 1.414px), var(--d-k) calc(50% - 0.707px), var(--d-k) calc(50% + 0.707px), transparent calc(50% + 1.414px)),
+        linear-gradient(-45deg, transparent calc(50% - 1.414px), var(--d-m) calc(50% - 0.707px), var(--d-m) calc(50% + 0.707px), transparent calc(50% + 1.414px)),
+        linear-gradient(-45deg, transparent calc(50% - 1.414px), var(--d-b) calc(50% - 0.707px), var(--d-b) calc(50% + 0.707px), transparent calc(50% + 1.414px));
+}
+/* Embossed (lit from above): the dark copy of each arm sits on its upper side, as the theme draws
+   it: one pixel to the side the arm rises toward and one pixel up, so it shows as a 1px edge along
+   the arm and a cap above its top end. Each copy is complete (base, white, black), so where the two
+   copies of an arm overlap they paint the same colour. The box is the glyph's, 1px wider on each
+   side and 1px taller at the top. */
+.xp-close::after {
+    background-image:
+        linear-gradient(45deg, transparent calc(50% - 1.414px), var(--d-k) calc(50% - 0.707px), var(--d-k) calc(50% + 0.707px), transparent calc(50% + 1.414px)),
+        linear-gradient(45deg, transparent calc(50% - 1.414px), var(--d-m) calc(50% - 0.707px), var(--d-m) calc(50% + 0.707px), transparent calc(50% + 1.414px)),
+        linear-gradient(45deg, transparent calc(50% - 1.414px), var(--d-b) calc(50% - 0.707px), var(--d-b) calc(50% + 0.707px), transparent calc(50% + 1.414px)),
+        linear-gradient(45deg, transparent calc(50% - 1.414px), var(--d-k) calc(50% - 0.707px), var(--d-k) calc(50% + 0.707px), transparent calc(50% + 1.414px)),
+        linear-gradient(45deg, transparent calc(50% - 1.414px), var(--d-m) calc(50% - 0.707px), var(--d-m) calc(50% + 0.707px), transparent calc(50% + 1.414px)),
+        linear-gradient(45deg, transparent calc(50% - 1.414px), var(--d-b) calc(50% - 0.707px), var(--d-b) calc(50% + 0.707px), transparent calc(50% + 1.414px)),
+        linear-gradient(-45deg, transparent calc(50% - 1.414px), var(--d-k) calc(50% - 0.707px), var(--d-k) calc(50% + 0.707px), transparent calc(50% + 1.414px)),
+        linear-gradient(-45deg, transparent calc(50% - 1.414px), var(--d-m) calc(50% - 0.707px), var(--d-m) calc(50% + 0.707px), transparent calc(50% + 1.414px)),
+        linear-gradient(-45deg, transparent calc(50% - 1.414px), var(--d-b) calc(50% - 0.707px), var(--d-b) calc(50% + 0.707px), transparent calc(50% + 1.414px)),
+        linear-gradient(-45deg, transparent calc(50% - 1.414px), var(--d-k) calc(50% - 0.707px), var(--d-k) calc(50% + 0.707px), transparent calc(50% + 1.414px)),
+        linear-gradient(-45deg, transparent calc(50% - 1.414px), var(--d-m) calc(50% - 0.707px), var(--d-m) calc(50% + 0.707px), transparent calc(50% + 1.414px)),
+        linear-gradient(-45deg, transparent calc(50% - 1.414px), var(--d-b) calc(50% - 0.707px), var(--d-b) calc(50% + 0.707px), transparent calc(50% + 1.414px));
+    background-size: 11px 11px;
+    background-position: 2px 1px, 2px 1px, 2px 1px, 1px 0, 1px 0, 1px 0, 0 1px, 0 1px, 0 1px, 1px 0, 1px 0, 1px 0;
+}

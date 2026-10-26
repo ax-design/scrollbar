@@ -1,0 +1,486 @@
+/* Windows XP (Luna) scrollbar kit, the shades: the colours of every role of the construction, as
+   custom properties on a part's `:host`. Each part that draws with them (thumb, button, track, track
+   piece) adopts this block ahead of its own rules (kits/luna.ts), so the scheme's values inherited
+   from the page resolve on the part itself. */
+
+:host {
+    /* track-a: face */
+    --luna-track-a: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.44));
+    --luna-track-a-k: transparent;
+    --luna-track-a-base: var(--luna-face);
+    /* track-b: face */
+    --luna-track-b: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.25));
+    --luna-track-b-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.005));
+    --luna-track-b-base: var(--luna-face);
+    /* track-edge: face */
+    --luna-track-edge: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.395));
+    --luna-track-edge-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.01));
+    --luna-track-edge-base: var(--luna-face);
+
+    /* track-pressed-a: face */
+    --luna-track-pressed-a: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.01));
+    --luna-track-pressed-a-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.045 + var(--luna-press) * 0.01));
+    --luna-track-pressed-a-base: var(--luna-face);
+    /* track-pressed-b: face */
+    --luna-track-pressed-b: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.97));
+    --luna-track-pressed-b-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.015));
+    --luna-track-pressed-b-base: var(--luna-face);
+    /* track-pressed-edge: face */
+    --luna-track-pressed-edge: transparent;
+    --luna-track-pressed-edge-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.105));
+    --luna-track-pressed-edge-base: var(--luna-face);
+
+    /* track-disabled: face */
+    --luna-track-disabled: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.25));
+    --luna-track-disabled-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.005));
+    --luna-track-disabled-base: var(--luna-face);
+    /* track-disabled-edge: face */
+    --luna-track-disabled-edge: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.57));
+    --luna-track-disabled-edge-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.015));
+    --luna-track-disabled-edge-base: var(--luna-face);
+
+    /* thumb-ring: accent */
+    --luna-thumb-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.085));
+    --luna-thumb-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.27));
+    --luna-thumb-ring-base: var(--luna-accent);
+    /* thumb-ring-top: accent */
+    --luna-thumb-ring-top: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.205));
+    --luna-thumb-ring-top-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.185));
+    --luna-thumb-ring-top-base: var(--luna-accent);
+    /* thumb-ring-bottom: accent */
+    --luna-thumb-ring-bottom: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.115));
+    --luna-thumb-ring-bottom-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.245));
+    --luna-thumb-ring-bottom-base: var(--luna-accent);
+    /* thumb-ring-fill: accent-light */
+    --luna-thumb-ring-fill: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.735));
+    --luna-thumb-ring-fill-k: transparent;
+    --luna-thumb-ring-fill-base: var(--luna-accent-light);
+    /* thumb-edge-a: accent-light */
+    --luna-thumb-edge-a: transparent;
+    --luna-thumb-edge-a-k: rgba(0, 0, 0, 0.035);
+    --luna-thumb-edge-a-base: var(--luna-accent-light);
+    /* thumb-edge-b: accent-light */
+    --luna-thumb-edge-b: transparent;
+    --luna-thumb-edge-b-k: rgba(0, 0, 0, 0.06);
+    --luna-thumb-edge-b-base: var(--luna-accent-light);
+    /* thumb-edge-right: accent-light */
+    --luna-thumb-edge-right: transparent;
+    --luna-thumb-edge-right-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.05));
+    --luna-thumb-edge-right-base: var(--luna-accent-light);
+    /* thumb-edge-bottom: accent-light */
+    --luna-thumb-edge-bottom: transparent;
+    --luna-thumb-edge-bottom-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.17));
+    --luna-thumb-edge-bottom-base: var(--luna-accent-light);
+    /* thumb-fill-a: accent-light */
+    --luna-thumb-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 1.08));
+    --luna-thumb-fill-a-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.045));
+    --luna-thumb-fill-a-base: var(--luna-accent-light);
+    /* thumb-fill-b: accent-light */
+    --luna-thumb-fill-b: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.6));
+    --luna-thumb-fill-b-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.09));
+    --luna-thumb-fill-b-base: var(--luna-accent-light);
+    /* thumb-fill-c: accent-light */
+    --luna-thumb-fill-c: transparent;
+    --luna-thumb-fill-c-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.165));
+    --luna-thumb-fill-c-base: var(--luna-accent-light);
+    /* thumb-light: accent-light */
+    --luna-thumb-light: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.135));
+    --luna-thumb-light-k: transparent;
+    --luna-thumb-light-base: var(--luna-accent-light);
+    /* thumb-side: accent-light */
+    --luna-thumb-side: rgba(255, 255, 255, 0.09);
+    --luna-thumb-side-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.24));
+    --luna-thumb-side-base: var(--luna-accent-light);
+    /* thumb-end: accent */
+    --luna-thumb-end: rgba(255, 255, 255, 0.165);
+    --luna-thumb-end-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.245));
+    --luna-thumb-end-base: var(--luna-accent);
+
+    /* grip-a: accent-light */
+    --luna-grip-a: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.435));
+    --luna-grip-a-k: transparent;
+    --luna-grip-a-base: var(--luna-accent-light);
+    /* grip-b: accent-deep */
+    --luna-grip-b: rgba(255, 255, 255, 0.655);
+    --luna-grip-b-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.22));
+    --luna-grip-b-base: var(--luna-accent-deep);
+
+    /* thumb-hot-ring: accent-deep */
+    --luna-thumb-hot-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.145));
+    --luna-thumb-hot-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.55));
+    --luna-thumb-hot-ring-base: var(--luna-accent-deep);
+    /* thumb-hot-ring-top: accent-deep */
+    --luna-thumb-hot-ring-top: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.145));
+    --luna-thumb-hot-ring-top-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.55));
+    --luna-thumb-hot-ring-top-base: var(--luna-accent-deep);
+    /* thumb-hot-ring-bottom: accent-deep */
+    --luna-thumb-hot-ring-bottom: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.145));
+    --luna-thumb-hot-ring-bottom-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.55));
+    --luna-thumb-hot-ring-bottom-base: var(--luna-accent-deep);
+    /* thumb-hot-ring-fill: accent */
+    --luna-thumb-hot-ring-fill: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.595 + var(--luna-hot) * 0.51));
+    --luna-thumb-hot-ring-fill-k: transparent;
+    --luna-thumb-hot-ring-fill-base: var(--luna-accent);
+    /* thumb-hot-edge-a: accent-deep */
+    --luna-thumb-hot-edge-a: rgba(255, 255, 255, calc(var(--luna-hot) * 1.075));
+    --luna-thumb-hot-edge-a-k: transparent;
+    --luna-thumb-hot-edge-a-base: var(--luna-accent-deep);
+    /* thumb-hot-edge-b: accent-deep */
+    --luna-thumb-hot-edge-b: rgba(255, 255, 255, calc(var(--luna-hot)));
+    --luna-thumb-hot-edge-b-k: transparent;
+    --luna-thumb-hot-edge-b-base: var(--luna-accent-deep);
+    /* thumb-hot-edge-right: accent-deep */
+    --luna-thumb-hot-edge-right: rgba(255, 255, 255, calc(0.01 + var(--luna-hot) * 1.05));
+    --luna-thumb-hot-edge-right-k: transparent;
+    --luna-thumb-hot-edge-right-base: var(--luna-accent-deep);
+    /* thumb-hot-edge-bottom: accent */
+    --luna-thumb-hot-edge-bottom: rgba(255, 255, 255, calc(var(--luna-hot) * 0.795));
+    --luna-thumb-hot-edge-bottom-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.045));
+    --luna-thumb-hot-edge-bottom-base: var(--luna-accent);
+    /* thumb-hot-fill-a: accent-deep */
+    --luna-thumb-hot-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.465 + var(--luna-hot) * 1.23));
+    --luna-thumb-hot-fill-a-k: transparent;
+    --luna-thumb-hot-fill-a-base: var(--luna-accent-deep);
+    /* thumb-hot-fill-b: accent */
+    --luna-thumb-hot-fill-b: rgba(255, 255, 255, calc(var(--luna-hot) * 1.23));
+    --luna-thumb-hot-fill-b-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.1));
+    --luna-thumb-hot-fill-b-base: var(--luna-accent);
+    /* thumb-hot-fill-c: accent */
+    --luna-thumb-hot-fill-c: rgba(255, 255, 255, calc(var(--luna-hot) * 0.75));
+    --luna-thumb-hot-fill-c-k: transparent;
+    --luna-thumb-hot-fill-c-base: var(--luna-accent);
+    /* thumb-hot-light: accent */
+    --luna-thumb-hot-light: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.09 + var(--luna-hot)));
+    --luna-thumb-hot-light-k: transparent;
+    --luna-thumb-hot-light-base: var(--luna-accent);
+    /* thumb-hot-side: accent-light */
+    --luna-thumb-hot-side: rgba(255, 255, 255, calc(0.065 + var(--luna-hot) * 0.075));
+    --luna-thumb-hot-side-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.245));
+    --luna-thumb-hot-side-base: var(--luna-accent-light);
+    /* thumb-hot-end: accent */
+    --luna-thumb-hot-end: rgba(255, 255, 255, calc(var(--luna-hot) * 0.31));
+    --luna-thumb-hot-end-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.245));
+    --luna-thumb-hot-end-base: var(--luna-accent);
+
+    /* grip-hot-a: accent-deep */
+    --luna-grip-hot-a: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.265 + var(--luna-hot) * 1.25));
+    --luna-grip-hot-a-k: transparent;
+    --luna-grip-hot-a-base: var(--luna-accent-deep);
+    /* grip-hot-b: accent */
+    --luna-grip-hot-b: rgba(255, 255, 255, calc(0.005 + var(--luna-hot) * 0.545));
+    --luna-grip-hot-b-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.035));
+    --luna-grip-hot-b-base: var(--luna-accent);
+
+    /* thumb-pressed-ring: accent-deep */
+    --luna-thumb-pressed-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.185));
+    --luna-thumb-pressed-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.685));
+    --luna-thumb-pressed-ring-base: var(--luna-accent-deep);
+    /* thumb-pressed-ring-top: accent-deep */
+    --luna-thumb-pressed-ring-top: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.185));
+    --luna-thumb-pressed-ring-top-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.685));
+    --luna-thumb-pressed-ring-top-base: var(--luna-accent-deep);
+    /* thumb-pressed-ring-bottom: accent-deep */
+    --luna-thumb-pressed-ring-bottom: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.185));
+    --luna-thumb-pressed-ring-bottom-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.685));
+    --luna-thumb-pressed-ring-bottom-base: var(--luna-accent-deep);
+    /* thumb-pressed-ring-fill: accent-light */
+    --luna-thumb-pressed-ring-fill: transparent;
+    --luna-thumb-pressed-ring-fill-k: rgba(0, 0, 0, 0.035);
+    --luna-thumb-pressed-ring-fill-base: var(--luna-accent-light);
+    /* thumb-pressed-edge-a: accent-light */
+    --luna-thumb-pressed-edge-a: transparent;
+    --luna-thumb-pressed-edge-a-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.29));
+    --luna-thumb-pressed-edge-a-base: var(--luna-accent-light);
+    /* thumb-pressed-edge-b: accent-light */
+    --luna-thumb-pressed-edge-b: transparent;
+    --luna-thumb-pressed-edge-b-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.37));
+    --luna-thumb-pressed-edge-b-base: var(--luna-accent-light);
+    /* thumb-pressed-edge-right: accent-light */
+    --luna-thumb-pressed-edge-right: transparent;
+    --luna-thumb-pressed-edge-right-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.185));
+    --luna-thumb-pressed-edge-right-base: var(--luna-accent-light);
+    /* thumb-pressed-edge-bottom: accent-light */
+    --luna-thumb-pressed-edge-bottom: rgba(255, 255, 255, 0.04);
+    --luna-thumb-pressed-edge-bottom-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.225));
+    --luna-thumb-pressed-edge-bottom-base: var(--luna-accent-light);
+    /* thumb-pressed-fill-a: accent */
+    --luna-thumb-pressed-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.89));
+    --luna-thumb-pressed-fill-a-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.075));
+    --luna-thumb-pressed-fill-a-base: var(--luna-accent);
+    /* thumb-pressed-fill-b: accent-light */
+    --luna-thumb-pressed-fill-b: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.475));
+    --luna-thumb-pressed-fill-b-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.115));
+    --luna-thumb-pressed-fill-b-base: var(--luna-accent-light);
+    /* thumb-pressed-fill-c: accent */
+    --luna-thumb-pressed-fill-c: rgba(255, 255, 255, calc(var(--luna-gloss)));
+    --luna-thumb-pressed-fill-c-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.08));
+    --luna-thumb-pressed-fill-c-base: var(--luna-accent);
+    /* thumb-pressed-light: accent-light */
+    --luna-thumb-pressed-light: transparent;
+    --luna-thumb-pressed-light-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.325));
+    --luna-thumb-pressed-light-base: var(--luna-accent-light);
+    /* thumb-pressed-side: accent-light */
+    --luna-thumb-pressed-side: rgba(255, 255, 255, 0.115);
+    --luna-thumb-pressed-side-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.025 + var(--luna-press) * 0.23));
+    --luna-thumb-pressed-side-base: var(--luna-accent-light);
+    /* thumb-pressed-end: accent */
+    --luna-thumb-pressed-end: rgba(255, 255, 255, 0.165);
+    --luna-thumb-pressed-end-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.25));
+    --luna-thumb-pressed-end-base: var(--luna-accent);
+
+    /* grip-pressed-a: accent-light */
+    --luna-grip-pressed-a: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.155));
+    --luna-grip-pressed-a-k: transparent;
+    --luna-grip-pressed-a-base: var(--luna-accent-light);
+    /* grip-pressed-b: accent-deep */
+    --luna-grip-pressed-b: rgba(255, 255, 255, 0.595);
+    --luna-grip-pressed-b-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.06 + var(--luna-press) * 0.285));
+    --luna-grip-pressed-b-base: var(--luna-accent-deep);
+
+    /* button-ring: accent-light */
+    --luna-button-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.97));
+    --luna-button-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.39));
+    --luna-button-ring-base: var(--luna-accent-light);
+    /* button-ring-top: accent-light */
+    --luna-button-ring-top: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.01));
+    --luna-button-ring-top-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.275));
+    --luna-button-ring-top-base: var(--luna-accent-light);
+    /* button-ring-bottom: accent-light */
+    --luna-button-ring-bottom: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.97));
+    --luna-button-ring-bottom-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.355));
+    --luna-button-ring-bottom-base: var(--luna-accent-light);
+    /* button-ring-fill: accent-light */
+    --luna-button-ring-fill: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.36));
+    --luna-button-ring-fill-k: rgba(0, 0, 0, 0.075);
+    --luna-button-ring-fill-base: var(--luna-accent-light);
+    /* button-edge-a: accent-light */
+    --luna-button-edge-a: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.05));
+    --luna-button-edge-a-k: transparent;
+    --luna-button-edge-a-base: var(--luna-accent-light);
+    /* button-edge-b: accent-light */
+    --luna-button-edge-b: transparent;
+    --luna-button-edge-b-k: transparent;
+    --luna-button-edge-b-base: var(--luna-accent-light);
+    /* button-edge-right: accent-light */
+    --luna-button-edge-right: transparent;
+    --luna-button-edge-right-k: transparent;
+    --luna-button-edge-right-base: var(--luna-accent-light);
+    /* button-edge-bottom: accent-light */
+    --luna-button-edge-bottom: transparent;
+    --luna-button-edge-bottom-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.105));
+    --luna-button-edge-bottom-base: var(--luna-accent-light);
+    /* button-fill-a: accent-light */
+    --luna-button-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 1.25));
+    --luna-button-fill-a-k: transparent;
+    --luna-button-fill-a-base: var(--luna-accent-light);
+    /* button-fill-b: accent-light */
+    --luna-button-fill-b: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.37));
+    --luna-button-fill-b-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.105));
+    --luna-button-fill-b-base: var(--luna-accent-light);
+    /* button-fill-c: accent-light */
+    --luna-button-fill-c: transparent;
+    --luna-button-fill-c-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.165));
+    --luna-button-fill-c-base: var(--luna-accent-light);
+    /* button-side: accent */
+    --luna-button-side: rgba(255, 255, 255, 0.345);
+    --luna-button-side-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.3));
+    --luna-button-side-base: var(--luna-accent);
+    /* button-end: accent */
+    --luna-button-end: rgba(255, 255, 255, 0.12);
+    --luna-button-end-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.195));
+    --luna-button-end-base: var(--luna-accent);
+
+    /* glyph-normal: glyph */
+    --luna-glyph-normal: rgba(255, 255, 255, 0.13);
+    --luna-glyph-normal-k: transparent;
+    --luna-glyph-normal-base: var(--luna-glyph);
+
+    /* button-glint: accent-light */
+    --luna-button-glint: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.19));
+    --luna-button-glint-k: rgba(0, 0, 0, 0.25);
+    --luna-button-glint-base: var(--luna-accent-light);
+
+    /* button-hot-ring: accent-deep */
+    --luna-button-hot-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.98 + var(--luna-hot) * 0.025));
+    --luna-button-hot-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.5));
+    --luna-button-hot-ring-base: var(--luna-accent-deep);
+    /* button-hot-ring-top: accent-deep */
+    --luna-button-hot-ring-top: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.985 + var(--luna-hot) * 0.015));
+    --luna-button-hot-ring-top-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.495));
+    --luna-button-hot-ring-top-base: var(--luna-accent-deep);
+    /* button-hot-ring-bottom: accent-deep */
+    --luna-button-hot-ring-bottom: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.03));
+    --luna-button-hot-ring-bottom-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.5));
+    --luna-button-hot-ring-bottom-base: var(--luna-accent-deep);
+    /* button-hot-ring-fill: accent-deep */
+    --luna-button-hot-ring-fill: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.4 + var(--luna-hot) * 0.79));
+    --luna-button-hot-ring-fill-k: rgba(0, 0, 0, 0.09);
+    --luna-button-hot-ring-fill-base: var(--luna-accent-deep);
+    /* button-hot-edge-a: accent-deep */
+    --luna-button-hot-edge-a: rgba(255, 255, 255, calc(var(--luna-hot)));
+    --luna-button-hot-edge-a-k: transparent;
+    --luna-button-hot-edge-a-base: var(--luna-accent-deep);
+    /* button-hot-edge-b: accent-deep */
+    --luna-button-hot-edge-b: rgba(255, 255, 255, calc(var(--luna-hot)));
+    --luna-button-hot-edge-b-k: rgba(0, 0, 0, 0.06);
+    --luna-button-hot-edge-b-base: var(--luna-accent-deep);
+    /* button-hot-edge-right: accent-deep */
+    --luna-button-hot-edge-right: rgba(255, 255, 255, calc(var(--luna-hot)));
+    --luna-button-hot-edge-right-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.01));
+    --luna-button-hot-edge-right-base: var(--luna-accent-deep);
+    /* button-hot-edge-bottom: accent-deep */
+    --luna-button-hot-edge-bottom: rgba(255, 255, 255, calc(var(--luna-hot)));
+    --luna-button-hot-edge-bottom-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.155));
+    --luna-button-hot-edge-bottom-base: var(--luna-accent-deep);
+    /* button-hot-fill-a: accent-deep */
+    --luna-button-hot-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 1.025 + var(--luna-hot) * 1.25));
+    --luna-button-hot-fill-a-k: transparent;
+    --luna-button-hot-fill-a-base: var(--luna-accent-deep);
+    /* button-hot-fill-b: accent-deep */
+    --luna-button-hot-fill-b: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.51 + var(--luna-hot) * 1.21));
+    --luna-button-hot-fill-b-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.025));
+    --luna-button-hot-fill-b-base: var(--luna-accent-deep);
+    /* button-hot-fill-c: accent */
+    --luna-button-hot-fill-c: rgba(255, 255, 255, calc(var(--luna-hot) * 0.76));
+    --luna-button-hot-fill-c-k: transparent;
+    --luna-button-hot-fill-c-base: var(--luna-accent);
+    /* button-hot-side: accent */
+    --luna-button-hot-side: rgba(255, 255, 255, calc(var(--luna-hot) * 0.13));
+    --luna-button-hot-side-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.295));
+    --luna-button-hot-side-base: var(--luna-accent);
+    /* button-hot-end: accent-deep */
+    --luna-button-hot-end: rgba(255, 255, 255, calc(0.02 + var(--luna-hot) * 0.78));
+    --luna-button-hot-end-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.215));
+    --luna-button-hot-end-base: var(--luna-accent-deep);
+
+    /* glyph-hot: glyph */
+    --luna-glyph-hot: rgba(255, 255, 255, 0.04);
+    --luna-glyph-hot-k: transparent;
+    --luna-glyph-hot-base: var(--luna-glyph);
+
+    /* button-hot-glint: accent-deep */
+    --luna-button-hot-glint: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.035 + var(--luna-hot) * 0.92));
+    --luna-button-hot-glint-k: rgba(0, 0, 0, 0.155);
+    --luna-button-hot-glint-base: var(--luna-accent-deep);
+
+    /* button-pressed-ring: accent-deep */
+    --luna-button-pressed-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.14));
+    --luna-button-pressed-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.55 + var(--luna-press) * 0.015));
+    --luna-button-pressed-ring-base: var(--luna-accent-deep);
+    /* button-pressed-ring-top: accent-deep */
+    --luna-button-pressed-ring-top: rgba(255, 255, 255, calc(var(--luna-highlight)));
+    --luna-button-pressed-ring-top-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.49));
+    --luna-button-pressed-ring-top-base: var(--luna-accent-deep);
+    /* button-pressed-ring-bottom: accent-deep */
+    --luna-button-pressed-ring-bottom: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.145));
+    --luna-button-pressed-ring-bottom-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.55 + var(--luna-press) * 0.015));
+    --luna-button-pressed-ring-bottom-base: var(--luna-accent-deep);
+    /* button-pressed-ring-fill: accent-light */
+    --luna-button-pressed-ring-fill: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.035));
+    --luna-button-pressed-ring-fill-k: rgba(0, 0, 0, 0.11);
+    --luna-button-pressed-ring-fill-base: var(--luna-accent-light);
+    /* button-pressed-edge-a: accent-light */
+    --luna-button-pressed-edge-a: transparent;
+    --luna-button-pressed-edge-a-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.215));
+    --luna-button-pressed-edge-a-base: var(--luna-accent-light);
+    /* button-pressed-edge-b: accent-light */
+    --luna-button-pressed-edge-b: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.25));
+    --luna-button-pressed-edge-b-k: rgba(0, 0, 0, calc(var(--luna-press)));
+    --luna-button-pressed-edge-b-base: var(--luna-accent-light);
+    /* button-pressed-edge-right: accent-light */
+    --luna-button-pressed-edge-right: rgba(255, 255, 255, 0.13);
+    --luna-button-pressed-edge-right-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.08));
+    --luna-button-pressed-edge-right-base: var(--luna-accent-light);
+    /* button-pressed-edge-bottom: accent */
+    --luna-button-pressed-edge-bottom: rgba(255, 255, 255, 0.65);
+    --luna-button-pressed-edge-bottom-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.135));
+    --luna-button-pressed-edge-bottom-base: var(--luna-accent);
+    /* button-pressed-fill-a: accent */
+    --luna-button-pressed-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.77));
+    --luna-button-pressed-fill-a-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.105));
+    --luna-button-pressed-fill-a-base: var(--luna-accent);
+    /* button-pressed-fill-b: accent */
+    --luna-button-pressed-fill-b: rgba(255, 255, 255, calc(var(--luna-gloss)));
+    --luna-button-pressed-fill-b-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.105));
+    --luna-button-pressed-fill-b-base: var(--luna-accent);
+    /* button-pressed-fill-c: accent-light */
+    --luna-button-pressed-fill-c: rgba(255, 255, 255, calc(var(--luna-gloss) * 1.25));
+    --luna-button-pressed-fill-c-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.185));
+    --luna-button-pressed-fill-c-base: var(--luna-accent-light);
+    /* button-pressed-side: accent */
+    --luna-button-pressed-side: rgba(255, 255, 255, 0.4);
+    --luna-button-pressed-side-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.3));
+    --luna-button-pressed-side-base: var(--luna-accent);
+    /* button-pressed-end: accent */
+    --luna-button-pressed-end: rgba(255, 255, 255, 0.12);
+    --luna-button-pressed-end-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.18 + var(--luna-press) * 0.015));
+    --luna-button-pressed-end-base: var(--luna-accent);
+
+    /* glyph-pressed: glyph */
+    --luna-glyph-pressed: rgba(255, 255, 255, 0.04);
+    --luna-glyph-pressed-k: transparent;
+    --luna-glyph-pressed-base: var(--luna-glyph);
+
+    /* button-pressed-glint: accent */
+    --luna-button-pressed-glint: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.28));
+    --luna-button-pressed-glint-k: rgba(0, 0, 0, calc(0.105 + var(--luna-press) * 0.25));
+    --luna-button-pressed-glint-base: var(--luna-accent);
+
+    /* button-disabled-ring: disabled */
+    --luna-button-disabled-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.25));
+    --luna-button-disabled-ring-k: transparent;
+    --luna-button-disabled-ring-base: var(--luna-disabled);
+    /* button-disabled-ring-top: disabled */
+    --luna-button-disabled-ring-top: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.25));
+    --luna-button-disabled-ring-top-k: transparent;
+    --luna-button-disabled-ring-top-base: var(--luna-disabled);
+    /* button-disabled-ring-bottom: disabled */
+    --luna-button-disabled-ring-bottom: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.25));
+    --luna-button-disabled-ring-bottom-k: transparent;
+    --luna-button-disabled-ring-bottom-base: var(--luna-disabled);
+    /* button-disabled-ring-fill: disabled */
+    --luna-button-disabled-ring-fill: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.395));
+    --luna-button-disabled-ring-fill-k: rgba(0, 0, 0, 0.01);
+    --luna-button-disabled-ring-fill-base: var(--luna-disabled);
+    /* button-disabled-edge-a: disabled */
+    --luna-button-disabled-edge-a: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.105));
+    --luna-button-disabled-edge-a-k: transparent;
+    --luna-button-disabled-edge-a-base: var(--luna-disabled);
+    /* button-disabled-edge-b: disabled */
+    --luna-button-disabled-edge-b: transparent;
+    --luna-button-disabled-edge-b-k: rgba(0, 0, 0, 0.14);
+    --luna-button-disabled-edge-b-base: var(--luna-disabled);
+    /* button-disabled-edge-right: disabled */
+    --luna-button-disabled-edge-right: rgba(255, 255, 255, 0.025);
+    --luna-button-disabled-edge-right-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.05));
+    --luna-button-disabled-edge-right-base: var(--luna-disabled);
+    /* button-disabled-edge-bottom: disabled */
+    --luna-button-disabled-edge-bottom: transparent;
+    --luna-button-disabled-edge-bottom-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.05));
+    --luna-button-disabled-edge-bottom-base: var(--luna-disabled);
+    /* button-disabled-fill-a: disabled */
+    --luna-button-disabled-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.21));
+    --luna-button-disabled-fill-a-k: transparent;
+    --luna-button-disabled-fill-a-base: var(--luna-disabled);
+    /* button-disabled-fill-b: disabled */
+    --luna-button-disabled-fill-b: transparent;
+    --luna-button-disabled-fill-b-k: transparent;
+    --luna-button-disabled-fill-b-base: var(--luna-disabled);
+    /* button-disabled-fill-c: disabled */
+    --luna-button-disabled-fill-c: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.12));
+    --luna-button-disabled-fill-c-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.03));
+    --luna-button-disabled-fill-c-base: var(--luna-disabled);
+    /* button-disabled-side: disabled */
+    --luna-button-disabled-side: transparent;
+    --luna-button-disabled-side-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.255));
+    --luna-button-disabled-side-base: var(--luna-disabled);
+    /* button-disabled-end: disabled */
+    --luna-button-disabled-end: transparent;
+    --luna-button-disabled-end-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.22));
+    --luna-button-disabled-end-base: var(--luna-disabled);
+
+    /* glyph-disabled: disabled */
+    --luna-glyph-disabled: rgba(255, 255, 255, 0.585);
+    --luna-glyph-disabled-k: rgba(0, 0, 0, 0.2);
+    --luna-glyph-disabled-base: var(--luna-disabled);
+}

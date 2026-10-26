@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>scrollbar browser test</title>
+<style>
+    html, body { margin: 0; }
+    body { position: relative; font: 13px/1.4 sans-serif; }
+    h3 { margin: 0; font-size: 13px; }
+    ax-scroll-view { position: absolute; display: block; width: 300px; height: 200px; background: #f4f4f4; }
+    #v { left: 20px; top: 20px; }
+    #rtl { left: 20px; top: 240px; }
+    #auto { left: 20px; top: 460px; height: 100px; }
+    #both { left: 340px; top: 20px; }
+    #always { left: 340px; top: 240px; height: 100px; }
+    #surf { left: 340px; top: 360px; height: 100px; }
+    #snap { left: 340px; top: 460px; height: 120px; margin-top: 0.5px; }
+    #kit { left: 660px; top: 20px; width: 120px; height: 150px; }
+    #sel { left: 660px; top: 190px; width: 120px; height: 120px; }
+    #tr { left: 660px; top: 330px; width: 120px; height: 120px; }
+    #tr-box { height: 700px; }
+    /* The page scrollbar fades out soon after a move, so the checks find it at rest. */
+    #page { --ax-scrollbar-idle-delay: 0.3s; }
+
+    /* Theme of the test: 10px bars and buttons, 20px minimum thumb, no transitions. Outer rules
+       win over the component's own shadow styles, so these apply to both element kinds. */
+    ax-scroll-view::part(scrollbar-vertical), ax-scroll-view::part(scrollbar-horizontal),
+    ax-scrollbar::part(scrollbar-vertical), ax-scrollbar::part(scrollbar-horizontal) {
+        padding: 0; opacity: 1; transition: none;
+    }
+    ax-scroll-view::part(scrollbar-vertical), ax-scrollbar::part(scrollbar-vertical) { width: 10px; }
+    ax-scroll-view::part(scrollbar-horizontal), ax-scrollbar::part(scrollbar-horizontal) { height: 10px; }
+    ax-scroll-view::part(button), ax-scrollbar::part(button) { width: 10px; height: 10px; }
+    /* The timings and the zone of the checks, whatever the default look: the pointer is felt two bar widths away,
+       cards open at once, states ease in 100ms, bars fade and slide in by exponential approach. */
+    ax-scroll-view, ax-scrollbar {
+        --ax-scrollbar-hotzone: 200%; --ax-scrollbar-card-delay: 0s; --ax-scrollbar-state-smoothing: 100ms;
+        --ax-scrollbar-fade-in-duration: 0s; --ax-scrollbar-fade-out-duration: 0s; --ax-scrollbar-slide-distance: 3px;
+    }
+    /* The cards of the checks fade in 150ms and out in 100ms and slide in 250ms, whatever the default look. */
+    ax-scroll-view::part(card), ax-scrollbar::part(card) { transition: opacity 150ms linear, transform 250ms cubic-bezier(0.1, 0.9, 0.2, 1); }
+    ax-scroll-view::part(card-exit), ax-scrollbar::part(card-exit) { transition-duration: 100ms; }
+    /* Short timings, so the checks do not wait long. */
+    #v {
+        --ax-scrollbar-line: 40px; --ax-scrollbar-repeat-delay: 100ms; --ax-scrollbar-repeat-interval: 30ms;
+        --ax-scrollbar-idle-delay: 0.3s; --ax-scrollbar-touch-idle-delay: 100ms;
+    }
+    ax-scroll-view::part(thumb-vertical), ax-scrollbar::part(thumb-vertical) {
+        min-height: 20px; left: 0; right: 0; top: 0; background: #888; border-radius: 0; transition: none;
+    }
+    ax-scroll-view::part(thumb-horizontal), ax-scrollbar::part(thumb-horizontal) {
+        min-width: 20px; top: 0; bottom: 0; left: 0; background: #888; border-radius: 0; transition: none;
+    }
+</style>
+</head>
+<body>
+<ax-scroll-view id="v" hide="" marker-align="start">
+    <div style="height: 2000px">
+        <div style="height: 500px"><h3 id="h0">Section 0</h3></div>
+        <div style="height: 500px"><h3 id="h500">Section 500</h3></div>
+        <div style="height: 500px"><h3 id="h1000">Section 1000</h3><em class="noid" aria-label="Labelled" style="display: block; margin-top: 200px">x</em></div>
+        <div style="height: 500px"><h3 id="h1500">Section 1500</h3></div>
+    </div>
+</ax-scroll-view>
+
+<ax-scroll-view id="rtl" hide="" dir="rtl">
+    <div style="width: 600px; height: 2000px"></div>
+</ax-scroll-view>
+
+<ax-scroll-view id="auto" hide="">
+    <div style="height: 80px"></div>
+</ax-scroll-view>
+
+<ax-scroll-view id="both" hide="">
+    <div style="width: 600px; height: 2000px"></div>
+</ax-scroll-view>
+
+<ax-scroll-view id="always" hide="" vertical="always">
+    <div style="height: 80px"></div>
+</ax-scroll-view>
+
+<ax-scroll-view id="surf" hide="">
+    <div style="height: 1000px"></div>
+</ax-scroll-view>
+
+<!-- Content 555px on a 120px host: the proportional thumb (21.6px) is fractional, so snap has work to do. -->
+<ax-scroll-view id="snap" hide="" snap>
+    <div style="height: 555px"></div>
+</ax-scroll-view>
+
+<!-- No hide attribute: the kit checks see the default of the kit. -->
+<ax-scroll-view id="kit" marker-align="center">
+    <div style="height: 1200px"><h3 id="k600" style="margin-top: 600px">Kit 600</h3></div>
+</ax-scroll-view>
+
+<!-- Markers from a selector, with the default marker-align (center). -->
+<ax-scroll-view id="sel" marker-selector="h4">
+    <div style="height: 1200px">
+        <h4 id="s300" style="margin: 300px 0 0">Alpha</h4>
+        <p id="tick">0</p>
+        <div id="sel-more"></div>
+    </div>
+</ax-scroll-view>
+
+<!-- A marker inside a box that enters with a transform, as a page transition does. -->
+<ax-scroll-view id="tr" marker-align="start">
+    <div style="height: 1200px">
+        <div id="tr-box"><h3 id="tr600" style="margin-top: 600px">Moved</h3></div>
+    </div>
+</ax-scroll-view>
+
+<ax-scrollbar id="page" hide=""></ax-scrollbar>
+<div style="height: 3000px"></div>
+
+<script type="module" src="./page.ts"></script>
+</body>
+</html>

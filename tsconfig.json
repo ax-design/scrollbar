@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "target": "ES2017",
+        "lib": ["ES2017", "DOM", "DOM.Iterable"],
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "strict": true,
+        "noEmit": true,
+        "allowImportingTsExtensions": true,
+        "types": ["bun"],
+        "skipLibCheck": true,
+        "paths": { "@ax-design/scrollbar": ["./src/index.ts"], "@ax-design/acrylic": ["../acrylic/src/index.ts"] }
+    },
+    "include": ["src", "demo"],
+    "exclude": ["demo/dist"]
+}

@@ -1,0 +1,187 @@
+/* The Luna colour schemes, for the luna kit (kits/luna.css) and the demo's XP window
+   (xp-window.css). A scheme is a class on an ancestor: custom properties inherit into the
+   scrollbar's shadow root, so one class colours the bars and the window chrome alike.
+
+   A scheme is tones (designed colours), numbers (contrast) and three geometry flags. Every colour of
+   the construction is a role: a tone, then white laid over it at calc(<number> * k), then black at
+   calc(<number> * k), where k is a constant of the construction, one per role, the same for every
+   scheme. A hot role adds  + var(--luna-hot) * k  to its white term, a pressed role adds
+   + var(--luna-press) * k  to its black term. The tone of each role is the same in every scheme
+   (the construction names it in a comment).
+
+   Tones. `-light` is the family's lit / hot tone, `-deep` its shadow / pressed / outline tone.
+   | family  | tones                                                          | used by                                         |
+   |---------|----------------------------------------------------------------|-------------------------------------------------|
+   | accent  | --luna-accent, --luna-accent-light, --luna-accent-deep         | thumb, arrow buttons (all states but disabled)  |
+   | glyph   | --luna-glyph                                                   | arrows, grip                                    |
+   | caption | --luna-caption, --luna-caption-light, --luna-caption-deep      | caption, frame, minimize/maximize buttons       |
+   | close   | --luna-close, --luna-close-light, --luna-close-deep            | close button                                    |
+   | neutral | --luna-face, --luna-text (theme INI, not fitted)               | track, corner, caption text                     |
+   | neutral | --luna-disabled (one value, shared by the three reference schemes) | disabled parts                                  |
+
+   Contrast numbers (B8.1: each is 1 in the reference scheme where its effect is strongest, 0..1 elsewhere;
+   the constants k absorb the scale). Every role has a white AND a black term.
+   | number             | meaning                                          | roles (white term / black term)                           |
+   |--------------------|--------------------------------------------------|-----------------------------------------------------------|
+   | --luna-highlight   | lit edges, highlight bands, glints               | *-ring* (white), *-edge-a, *-edge-b, *-light, *-glint, *-inner (white), track-* (white), grip-* (white) |
+   | --luna-shade       | shaded edges and drop shadows                    | *-edge-right, *-edge-bottom, *-side, *-end, *-shade*, *-shadow* (black), track-* (black) |
+   | --luna-gloss       | the glossy face gradients                        | *-fill-*, caption-a..e, *-glow (white)                    |
+   | --luna-depth       | the darkening of faces toward their far side     | *-fill-*, caption-a..e, caption-bottom* (black)           |
+   | --luna-hot         | extra lift of hot (hovered) roles                | added to the white term of every *-hot-* role             |
+   | --luna-press       | extra darkening of pressed roles                 | added to the black term of every *-pressed-* role, rings too |
+   | --luna-relief      | the window frame's bevel                         | frame-*, caption-left, -right, -bevel-*, -corner*, -top, -outline*, -light-a, -light-b (white = lit side, black = shaded side) |
+   | --luna-etch        | the etched outline of caption buttons, the ring's darkness | cb-*etch, close-*etch (both), *-ring (black), grip-* (black) |
+
+   `-light` and `-deep` stay within 25 degrees of OKLCH hue of their base and are lighter / darker than it.
+
+   Geometry flags (not colours):
+     --luna-light       top-left | top: where the light comes from
+     --luna-diagonal    1: the arrow buttons are shaded along the diagonal, 0: straight down
+     --luna-glint       1: the light line inside an arrow button's face (Olive Green), 0: none
+   Glyph colours stay pinned to the theme, the neutral tones are the theme's INI values.
+
+   Blue, Olive Green (Homestead) and Silver (Metallic) are fitted to the theme's own pieces by a tool
+   outside the repository. Purple, Orange, Pink and Gold are placeholders until they are designed. */
+
+
+/* The disabled tone: one value for the three reference schemes, as the theme's bitmaps are. */
+.luna-blue, .luna-olive, .luna-silver, .luna-purple, .luna-orange, .luna-pink, .luna-gold {
+    --luna-disabled: #f0f0e6;
+}
+/* Blue (Luna's default). Purple, Orange and Pink have Blue's numbers and other tones. */
+.luna-blue, .luna-purple, .luna-orange, .luna-pink {
+    --luna-light: top-left;
+    --luna-diagonal: 1;
+    --luna-glint: 0;
+    --luna-face: #ece9d8;
+    --luna-text: #ffffff;
+    --luna-highlight: 1;
+    --luna-shade: 0.72;
+    --luna-gloss: 0.182;
+    --luna-depth: 0.196;
+    --luna-hot: 0.624;
+    --luna-press: 0.675;
+    --luna-relief: 1;
+    --luna-etch: 0;
+}
+.luna-blue {
+    --luna-accent: #85b0ff;
+    --luna-accent-light: #bdd3ff;
+    --luna-accent-deep: #0065fa;
+    --luna-glyph: #42577d;
+    --luna-caption: #002fee;
+    --luna-caption-light: #0058f5;
+    --luna-caption-deep: #001ca4;
+    --luna-close: #f0461f;
+    --luna-close-light: #e86d50;
+    --luna-close-deep: #da4200;
+}
+/* Purple: placeholder, Blue's tones turned in OKLCH (the close family stays). To be designed by eye. */
+.luna-purple {
+    --luna-accent: #bf9df2;
+    --luna-accent-light: #dcc9f7;
+    --luna-accent-deep: #8e3ee5;
+    --luna-glyph: #5e4e77;
+    --luna-caption: #770abe;
+    --luna-caption-light: #892cdd;
+    --luna-caption-deep: #500382;
+    --luna-close: #f0461f;
+    --luna-close-light: #e86d50;
+    --luna-close-deep: #da4200;
+}
+/* Orange: ours, designed by eye on Blue's numbers. The caption is a lit, saturated orange, not Blue's darkness turned (that is brown); the close red is deeper so it parts from the orange. */
+.luna-orange {
+    --luna-accent: #ffb877;
+    --luna-accent-light: #ffdcb8;
+    --luna-accent-deep: #f07a1a;
+    --luna-glyph: #8a5228;
+    --luna-caption: #e8650a;
+    --luna-caption-light: #ff8f2a;
+    --luna-caption-deep: #b04300;
+    --luna-close: #d8301c;
+    --luna-close-light: #e86048;
+    --luna-close-deep: #a81a08;
+}
+/* Pink: ours, designed by eye on Blue's numbers: a lit magenta pink caption and rose bars. */
+.luna-pink {
+    --luna-accent: #f6a6cf;
+    --luna-accent-light: #fcd3e8;
+    --luna-accent-deep: #e3559e;
+    --luna-glyph: #7d4462;
+    --luna-caption: #d9338a;
+    --luna-caption-light: #f060ad;
+    --luna-caption-deep: #9e1158;
+    --luna-close: #f0461f;
+    --luna-close-light: #e86d50;
+    --luna-close-deep: #da4200;
+}
+/* Olive Green (Homestead). */
+.luna-olive {
+    --luna-light: top-left;
+    --luna-diagonal: 0;
+    --luna-glint: 1;
+    --luna-face: #ece9d8;
+    --luna-text: #ffffff;
+    --luna-accent: #9fb86e;
+    --luna-accent-light: #aec193;
+    --luna-accent-deep: #86a437;
+    --luna-glyph: #ffffff;
+    --luna-caption: #91ac6d;
+    --luna-caption-light: #c6d598;
+    --luna-caption-deep: #8b9d6e;
+    --luna-close: #f56732;
+    --luna-close-light: #f57f5c;
+    --luna-close-deep: #da6823;
+    --luna-highlight: 0.989;
+    --luna-shade: 1;
+    --luna-gloss: 0.042;
+    --luna-depth: 0.756;
+    --luna-hot: 0.439;
+    --luna-press: 1;
+    --luna-relief: 0.807;
+    --luna-etch: 0.002;
+}
+/* Silver (Metallic), lit from above. Gold has Silver's numbers. */
+.luna-silver, .luna-gold {
+    --luna-light: top;
+    --luna-diagonal: 0;
+    --luna-glint: 0;
+    --luna-highlight: 0.731;
+    --luna-shade: 0.913;
+    --luna-gloss: 1;
+    --luna-depth: 1;
+    --luna-hot: 1;
+    --luna-press: 0;
+    --luna-relief: 0.686;
+    --luna-etch: 1;
+}
+.luna-silver {
+    --luna-face: #e0dfe3;
+    --luna-text: #0e1010;
+    --luna-accent: #00096a;
+    --luna-accent-light: #ebedff;
+    --luna-accent-deep: #001a2a;
+    --luna-glyph: #171717;
+    --luna-caption: #777796;
+    --luna-caption-light: #ebedfd;
+    --luna-caption-deep: #000085;
+    --luna-close: #fb4d3a;
+    --luna-close-light: #ffeadd;
+    --luna-close-deep: #fd0000;
+}
+/* Gold: ours, designed by eye on Silver's numbers and light: a metal, so a warm cream light, a
+   mid gold body and deep bronze shadows, never a flat yellow. */
+.luna-gold {
+    --luna-face: #ece4d0;
+    --luna-text: #2a1f0a;
+    --luna-accent: #3a2600;
+    --luna-accent-light: #ffe6b0;
+    --luna-accent-deep: #2a1a00;
+    --luna-glyph: #2a1f0a;
+    --luna-caption: #c08a10;
+    --luna-caption-light: #ffe7a8;
+    --luna-caption-deep: #6b4500;
+    --luna-close: #fb4d3a;
+    --luna-close-light: #ffeadd;
+    --luna-close-deep: #fd0000;
+}

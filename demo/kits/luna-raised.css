@@ -1,0 +1,86 @@
+/* Windows XP (Luna) kit, the raised box that thumbs and arrow buttons share, as the rules of a part's
+   `:host` and of its `::before` and `::after`. The two boxes are laid on the part itself, which stays
+   the whole 17px cell, the hit area.
+   - ::before, the ring: a bordered box (white in Blue and Olive Green, grey in Silver), nearly
+     square at the top and rounded at the bottom. Its drop shadows (outer box-shadows, so they lie
+     under it) show along the long side and below the end.
+   - ::after, the face, a pixel inside the ring, with rounder corners than the ring (the ring's
+     fill shows there): four 1px edge strips (the top and left ones shaded along their length, the
+     right and bottom ones solid), the fill gradient and, on the thumb, a 2px highlight along the top.
+   A button's glyph is cut out of the face (a mask) over a glyph-coloured block in the ring, so its
+   antialiased edge mixes the two colours. The grip lines are layers of the face.
+
+   The paints are slots (--k-*), set per state on the part and inherited by its pseudo-elements. */
+
+/* ---- Raised box: geometry ---------------------------------------------------------------------- */
+
+:host {
+    overflow: hidden;
+}
+/* The light's geometry: --k-out is the room left for the drop shadow at the right and bottom of the
+   cell, --k-radius the ring's corners as seen in a vertical bar (-turned: in a horizontal one, for
+   the thumb), --k-shading the angle of a button's shading. Lit from the top left: a 1px drop
+   shadow, a ring square at the top left. Lit from above: no drop shadow (the ring reaches the
+   edge), evenly rounded. The shading is diagonal when the scheme's --luna-diagonal is 1. A state
+   can set its own. */
+:host {
+    --k-out: 1px;
+    --k-radius: 1px 0 2px 2px;
+    --k-radius-turned: 1px 2px 2px 0;
+    --k-shading: calc(180deg - var(--luna-diagonal, 1) * 45deg);
+}
+:host([light="top"]) {
+    --k-out: 0px;
+    --k-radius: 1.5px;
+    --k-radius-turned: 1.5px;
+}
+/* The ring: a 1px border (lit from the top in both bars: lighter at the top, darker at the bottom) around
+   the ring's fill. Its colour is the ring's base, then white (a gradient across the border box with a stop
+   at each 1px edge, so it can differ at the top and the bottom), then black (the border colour itself,
+   on top). The shadows are three shadows each. */
+:host::before {
+    content: "";
+    position: absolute;
+    box-sizing: border-box;
+    inset: var(--k-ring-inset);
+    border: 1px solid;
+    border-color: var(--k-ring-top-k) var(--k-ring-k) var(--k-ring-bottom-k) var(--k-ring-k);
+    border-radius: var(--k-ring-radius);
+    background:
+        linear-gradient(var(--k-ringfill-k), var(--k-ringfill-k)) padding-box,
+        linear-gradient(var(--k-ringfill), var(--k-ringfill)) padding-box,
+        linear-gradient(var(--k-ringfill-b), var(--k-ringfill-b)) padding-box,
+        linear-gradient(to bottom, var(--k-ring-top) 1px, var(--k-ring) 1px calc(100% - 1px), var(--k-ring-bottom) calc(100% - 1px)) border-box,
+        linear-gradient(var(--k-ring-b), var(--k-ring-b)) border-box;
+    box-shadow:
+        var(--k-end-at) var(--k-end-k), var(--k-end-at) var(--k-end), var(--k-end-at) var(--k-end-b),
+        var(--k-side-at) var(--k-side-k), var(--k-side-at) var(--k-side), var(--k-side-at) var(--k-side-b);
+}
+/* The face: a gradient fill inside four 1px edge strips. The top and left strips run along the
+   direction of the shading (a, then b), the right and bottom ones are solid. Each of them is three
+   layers (black over white over base), so that nothing underneath shows through. */
+:host::after {
+    content: "";
+    position: absolute;
+    box-sizing: border-box;
+    inset: var(--k-face-inset);
+    border-radius: var(--k-face-radius);
+    background:
+        var(--k-grips, linear-gradient(transparent, transparent)),
+        var(--k-light-layers, linear-gradient(transparent, transparent)),
+        linear-gradient(var(--k-fill-dir), var(--k-fill-a-k), var(--k-fill-b-k), var(--k-fill-c-k)) 1px 1px / calc(100% - 2px) calc(100% - 2px) no-repeat,
+        linear-gradient(var(--k-fill-dir), var(--k-fill-a), var(--k-fill-b), var(--k-fill-c)) 1px 1px / calc(100% - 2px) calc(100% - 2px) no-repeat,
+        linear-gradient(var(--k-fill-dir), var(--k-fill-a-b), var(--k-fill-b-b), var(--k-fill-c-b)) 1px 1px / calc(100% - 2px) calc(100% - 2px) no-repeat,
+        linear-gradient(to right, var(--k-top-1-k), var(--k-top-2-k)) 0 0 / var(--k-top-size) no-repeat,
+        linear-gradient(to right, var(--k-top-1), var(--k-top-2)) 0 0 / var(--k-top-size) no-repeat,
+        linear-gradient(to right, var(--k-top-1-b), var(--k-top-2-b)) 0 0 / var(--k-top-size) no-repeat,
+        linear-gradient(var(--k-edge-bottom-k), var(--k-edge-bottom-k)) 0 100% / 100% 1px no-repeat,
+        linear-gradient(var(--k-edge-bottom), var(--k-edge-bottom)) 0 100% / 100% 1px no-repeat,
+        linear-gradient(var(--k-edge-bottom-b), var(--k-edge-bottom-b)) 0 100% / 100% 1px no-repeat,
+        linear-gradient(to bottom, var(--k-left-1-k), var(--k-left-2-k)) 0 1px / 1px var(--k-left-size) no-repeat,
+        linear-gradient(to bottom, var(--k-left-1), var(--k-left-2)) 0 1px / 1px var(--k-left-size) no-repeat,
+        linear-gradient(to bottom, var(--k-left-1-b), var(--k-left-2-b)) 0 1px / 1px var(--k-left-size) no-repeat,
+        linear-gradient(var(--k-edge-right-k), var(--k-edge-right-k)) 100% 1px / 1px calc(100% - 2px) no-repeat,
+        linear-gradient(var(--k-edge-right), var(--k-edge-right)) 100% 1px / 1px calc(100% - 2px) no-repeat,
+        linear-gradient(var(--k-edge-right-b), var(--k-edge-right-b)) 100% 1px / 1px calc(100% - 2px) no-repeat;
+}
