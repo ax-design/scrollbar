@@ -25,6 +25,9 @@ import raised from './raised.js';
 import schemes from './schemes.js';
 import shades from './shades.js';
 import thumb from './thumb.js';
+import { gripPlace, isWholeRatio } from './grip.js';
+import { deriveTones } from './tones.js';
+import type { Tones } from './tones.js';
 import track from './track.js';
 
 // The colour schemes: a class per scheme, setting the tones and numbers the parts read (see the
@@ -62,16 +65,45 @@ const LIGHT_SPEC: (typeof AxScrollbarThumb.extraSchema)[number] = {
     inherits: true,
     register: true,
 };
-// The schema of the raised parts: the light.
+// The schema of the raised parts: the light, the colour the tones follow and the tones that may be `auto`.
+const ACCENT_LIGHT = '--luna-accent-light';
+const AUTO_TONES: { name: string; tone: keyof Tones; used: string }[] = [
+    { name: '--luna-accent', tone: 'accent', used: '--luna-tone-accent' },
+    { name: '--luna-accent-deep', tone: 'deep', used: '--luna-tone-accent-deep' },
+    { name: '--luna-glyph', tone: 'glyph', used: '--luna-tone-glyph' },
+];
+// Set on the thumb by the bar while it snaps (the package documents it with `snap`).
+const THUMB_NUDGE = '--ax-scrollbar-thumb-nudge';
 const SCHEMA_KEY = 'ax-scrollbar-luna-raised';
-const SCHEMA = [LIGHT_SPEC];
+const SCHEMA: typeof AxScrollbarThumb.extraSchema = [
+    LIGHT_SPEC,
+    // Blue's, for a scheme that sets none.
+    { name: ACCENT_LIGHT, syntax: { type: 'color' }, initial: '#bdd3ff', inherits: true, register: true },
+    ...AUTO_TONES.map((t) => ({ name: t.name, syntax: { type: 'color' as const, keywords: ['auto'] }, initial: 'auto', inherits: true, register: true })),
+];
+
+// What each part last derived from, so that a part whose scheme did not change writes nothing.
+const derivedFrom = new WeakMap<HTMLElement, string>();
 
 // Called from each raised part's write(): the surface reads the tokens in its read phase, so this runs once
-// per frame with the values of that read, and only writes the attribute when the mode changed (a
-// scheme switch re-reads the parts through the attribute observer of the surface).
-function reflectLight(part: HTMLElement, values: Values | null): void {
+// per frame with the values of that read, and only writes when the scheme changed (a scheme switch re-reads
+// the parts through the attribute observer of the surface). It reflects the light as the attribute `light`,
+// and writes the tones the scheme leaves `auto` (derived from the colour of the body, see tones.ts) on the
+// part, where the rules of the roles read them; a tone the scheme sets is left to the rules.
+function reflectScheme(part: HTMLElement, values: Values | null): void {
     const light = values?.keyword(LIGHT) || 'top-left';
     if (part.getAttribute('light') !== light) part.setAttribute('light', light);
+    if (!values) return;
+    const body = values.raw(ACCENT_LIGHT);
+    const set = AUTO_TONES.map((t) => values.raw(t.name));
+    const key = `${light} ${body} ${set.join(' ')}`;
+    if (derivedFrom.get(part) === key) return;
+    derivedFrom.set(part, key);
+    const derived = Array.isArray(body) ? deriveTones(body, light === 'top') : null;
+    AUTO_TONES.forEach((t, i) => {
+        if (derived && set[i] === 'auto') part.style.setProperty(t.used, derived[t.tone]);
+        else part.style.removeProperty(t.used);
+    });
 }
 
 // The look is the class's shadow style alone: no surface layer draws (the default fill would cover
@@ -83,9 +115,67 @@ class LunaThumb extends AxScrollbarThumb {
     static extraSchema = SCHEMA;
     static styles = [shades, raised, thumb].join('\n');
 
+    constructor() {
+        super();
+        // The grip lines: the light box and the dark box, drawn by the rules of thumb.ts.
+        const root = this.shadowRoot as ShadowRoot;
+        for (const name of ['grip-a', 'grip-b']) {
+            const line = document.createElement('div');
+            line.className = `grip ${name}`;
+            root.appendChild(line);
+        }
+    }
+
+    // What the grip is drawn from, read in the read phase (see placeGrip), and what it was last placed for.
+    private gripNeeds: { device: boolean; axis: string; length: number; ratio: number; cross: number } = { device: false, axis: 'height', length: 0, ratio: 1, cross: 0 };
+    private gripFor = '';
+
+    // Reads what the grip needs: the length the bar wrote on the thumb and the nudge it carries (inline
+    // styles), the device pixel ratio, and, where the grip is drawn in device pixels, where the thumb
+    // starts across the bar.
+    read(): void {
+        super.read();
+        const axis = this.getAttribute('axis') === 'horizontal' ? 'width' : 'height';
+        const length = parseFloat(this.style.getPropertyValue(axis));
+        const ratio = window.devicePixelRatio || 1;
+        const nudge = parseFloat(this.style.getPropertyValue(THUMB_NUDGE)) || 0;
+        const device = length > 0 && (!isWholeRatio(ratio) || nudge !== 0);
+        let cross = 0;
+        if (device) {
+            const rect = this.getBoundingClientRect();
+            cross = (axis === 'width' ? rect.top : rect.left) * ratio;
+        }
+        this.gripNeeds = { device, axis, length, ratio, cross };
+    }
+
     write(now: number, quality: Quality): void {
         super.write(now, quality);
-        reflectLight(this, this.currentValues);
+        reflectScheme(this, this.currentValues);
+        this.placeGrip();
+    }
+
+    // Draws the grip in device pixels where the theme's 1px lines would not be crisp (grip.ts): where a CSS px
+    // is not a whole number of device pixels, and where a snapped thumb is moved by a fraction of one (the
+    // bar writes the nudge that carries what is drawn in it back, bar.ts). A change of the thumb's length,
+    // of its place across, of the axis or of the device pixel ratio (a zoom is a resize, which re-reads
+    // every surface) places it again.
+    private placeGrip(): void {
+        const { device, axis, length, ratio, cross } = this.gripNeeds;
+        if (device !== (this.getAttribute('grip') === 'device')) {
+            if (device) this.setAttribute('grip', 'device');
+            else this.removeAttribute('grip');
+        }
+        if (!device) {
+            this.gripFor = '';
+            return;
+        }
+        const key = `${axis} ${length} ${ratio} ${Math.round(cross * 1000)}`;
+        if (key === this.gripFor) return;
+        this.gripFor = key;
+        const place = gripPlace(length, ratio, cross);
+        this.style.setProperty('--k-grip-unit', `${place.unit}px`);
+        this.style.setProperty('--k-grip-along', `${place.along}px`);
+        this.style.setProperty('--k-grip-across', `${place.across}px`);
     }
 }
 
@@ -96,7 +186,7 @@ class LunaButton extends AxScrollbarButton {
 
     write(now: number, quality: Quality): void {
         super.write(now, quality);
-        reflectLight(this, this.currentValues);
+        reflectScheme(this, this.currentValues);
     }
 }
 

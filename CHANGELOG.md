@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented in this file.
 
+## 0.4.2
+
+- Luna kit: one colour recolours a scheme. `--luna-accent`, `--luna-accent-deep` and `--luna-glyph` accept `auto`, which is what they are in a scheme that does not set them, and the parts derive them from `--luna-accent-light` in OKLCH whenever the scheme's values change. The hue of the colour is kept; the accent and the deep tone are darker and more chromatic; the arrows and the grip lines are a dark tone of the hue on a light colour and white on a dark one (below a lightness of 0.8245, between Olive Green's body and Blue's). The relations are fitted to Blue, Purple, Orange and Pink for the Luna style and to Silver and Gold for the metallic one, and are written down in `src/kits/luna/tones.ts`. The seven shipped schemes set their tones and render as before.
+- Luna kit: a metallic custom scheme is documented. It sets `--luna-light: top` and takes the numbers of Silver, and its colour is `--luna-accent-light`; the README has an example.
+- Luna kit: the thumb's four grip lines stay four crisp lines at a zoom of 110%, 125% and 150%, where a CSS px is not a whole number of device pixels and the lines ran together. There the grip is drawn in device pixels, a line being `round(dpr)` of them, centred as the theme centres it and placed on whole pixels. At 100% and 200% it is drawn as before.
+- While `snap` is set the thumb carries `--ax-scrollbar-thumb-nudge`, the distance in CSS px that something drawn inside the thumb adds to its place along the bar to land on whole device pixels.
+- Browser checks for the derived tones (the arrows, the rings and the grip lines at pale blue, dark green, mid purple, pale gold and dark grey) and for the grip lines at 100%, 110%, 125%, 150% and 200% on real device pixel ratios, vertical and horizontal.
+
 ## 0.4.1
 
 - A bar that is not shown costs nothing. The default parts are paused (`@ax-design/surface` 0.4.3) while the indicator is away: a scroll view that nobody has touched runs no frame, reads no style and draws no layer, and its parts wake with the first scroll or pointer, fading in as before. A page of twenty scroll views scripts less than half as long when it mounts.

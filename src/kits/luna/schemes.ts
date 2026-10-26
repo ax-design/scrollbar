@@ -34,11 +34,28 @@ export default `/* The Luna colour schemes, for the Luna kit and the demo's XP w
 
    \`-light\` and \`-deep\` stay within 25 degrees of OKLCH hue of their base and are lighter / darker than it.
 
+   One colour recolours a scheme. --luna-accent-light is the colour of the thumb and the buttons at rest; --luna-accent,
+   --luna-accent-deep and --luna-glyph may be \`auto\`, which is what they are in a scheme that does not set them. The
+   parts then derive them from --luna-accent-light, in OKLCH, whenever the scheme's values change, with relations
+   fitted to the tones of the shipped schemes (the header of tones.ts gives them and their error): the hue of the
+   body is kept, the accent and the deep tone are darker and more chromatic than it, and the arrows and the grip are a
+   dark tone of the body's hue on a light body and white on a dark one (below a lightness of 0.8245, between Olive
+   Green's body and Blue's). The relations differ for the two styles below. A scheme may still set any tone itself.
+
+   Two styles. A Luna scheme (Blue, Olive Green, Purple, Orange, Pink) is lit from the top left; a metallic one (Silver,
+   Gold) from straight above, with a dark etched ring and a strong gloss. A scheme is metallic when it sets
+   --luna-light: top and takes Silver's numbers:
+     --luna-light: top; --luna-diagonal: 0; --luna-glint: 0;
+     --luna-highlight: 0.731; --luna-shade: 0.913; --luna-gloss: 1; --luna-depth: 1;
+     --luna-hot: 1; --luna-press: 0; --luna-relief: 0.686; --luna-etch: 1;
+   plus --luna-face and --luna-text (Silver's #e0dfe3 and #0e1010), and its own --luna-accent-light. The numbers that
+   matter most are --luna-gloss and --luna-depth (the sheen of the faces) and --luna-etch (the dark ring).
+
    Geometry flags (not colours):
      --luna-light       top-left | top: where the light comes from
      --luna-diagonal    1: the arrow buttons are shaded along the diagonal, 0: straight down
      --luna-glint       1: the light line inside an arrow button's face (Olive Green), 0: none
-   Glyph colours stay pinned to the theme, the neutral tones are the theme's INI values.
+   The neutral tones are the theme's INI values.
 
    Blue, Olive Green (Homestead) and Silver (Metallic) are fitted to the theme's own pieces by a tool
    outside the repository. Purple, Orange, Pink and Gold are placeholders until they are designed. */

@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 // Builds page.html and runs the browser checks of the scrollbar against it.
 // Usage: bun test-browser/run.ts [chromium|firefox|webkit ...]   (default: chromium)
 import { join } from 'node:path';
+import { deriveTones, toOklch } from '../src/kits/luna/tones.js';
 
 const dir = import.meta.dir;
 const dist = join(dir, 'dist');
@@ -68,6 +69,9 @@ interface Ctx {
     touch(): Promise<TouchCtx>;
     // A page of its own at a device pixel ratio; close() when done.
     scaled(dpr: number): Promise<{ page: any; call<T = any>(fn: string, ...args: unknown[]): Promise<T>; close(): Promise<void> }>;
+    // A browser of its own whose screen has `dpr` device pixels per CSS px (--force-device-scale-factor), as a
+    // zoomed or scaled desktop has: layout and snapping are in device pixels, which an emulated ratio does not do.
+    real(dpr: number): Promise<{ page: any; call<T = any>(fn: string, ...args: unknown[]): Promise<T>; close(): Promise<void> }>;
 }
 
 interface TouchCtx {
@@ -4006,6 +4010,122 @@ const checks: Check[] = [
         },
     },
     {
+        name: 'Luna auto tones: the accent, its deep tone and the arrows follow --luna-accent-light (white arrows on a dark body, tinted dark ones on a light one), and so do the rings and grip lines',
+        run: async (t) => {
+            const luna = `--luna-light: top-left; --luna-diagonal: 1; --luna-glint: 0; --luna-face: #ece9d8; --luna-text: #fff; --luna-disabled: #f0f0e6; --luna-highlight: 1; --luna-shade: 0.72; --luna-gloss: 0.182; --luna-depth: 0.196; --luna-hot: 0.624; --luna-press: 0.675; --luna-relief: 1; --luna-etch: 0;`;
+            const metal = `--luna-light: top; --luna-diagonal: 0; --luna-glint: 0; --luna-face: #e0dfe3; --luna-text: #0e1010; --luna-disabled: #f0f0e6; --luna-highlight: 0.731; --luna-shade: 0.913; --luna-gloss: 1; --luna-depth: 1; --luna-hot: 1; --luna-press: 0; --luna-relief: 0.686; --luna-etch: 1;`;
+            // The colours of the user's report: pale blue, dark green, mid purple, then pale gold and dark grey of a metallic one.
+            const cases: { name: string; body: string; numbers: string; metallic: boolean; white: boolean; shade: number; highlight: number }[] = [
+                { name: 'pale blue', body: '#cfe0ff', numbers: luna, metallic: false, white: false, shade: 0.72, highlight: 1 },
+                { name: 'dark green', body: '#1f4d2a', numbers: luna, metallic: false, white: true, shade: 0.72, highlight: 1 },
+                { name: 'mid purple', body: '#8a63c9', numbers: luna, metallic: false, white: true, shade: 0.72, highlight: 1 },
+                { name: 'pale gold', body: '#ffe6b0', numbers: metal, metallic: true, white: false, shade: 0.913, highlight: 0.731 },
+                { name: 'dark grey', body: '#3a3a3a', numbers: metal, metallic: true, white: true, shade: 0.913, highlight: 0.731 },
+            ];
+            const rgb = (hex: string): number[] => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+            const failures: string[] = [];
+            for (const c of cases) {
+                const css = `.t { ${c.numbers} --luna-accent-light: ${c.body}; }`;
+                const schemes: string = await t.call('lunaKit');
+                await t.call('plainMake', 'auto', schemes + css, { kit: 'luna', class: 't', vertical: 'always', horizontal: 'never', snap: '' }, '<div style="width: 200px; height: 1500px"></div>');
+                try {
+                    await t.frames(8);
+                    await t.park();
+                    await t.sleep(200);
+                    const tone = (part: string, property: string) => t.call<string>('partToken', 'auto', part, property);
+                    const want = deriveTones(rgb(c.body), c.metallic);
+                    const got = { accent: await tone('thumb-vertical', '--luna-tone-accent'), deep: await tone('thumb-vertical', '--luna-tone-accent-deep'), glyph: await tone('button-start-vertical', '--luna-tone-glyph') };
+                    if (got.accent !== want.accent || got.deep !== want.deep || got.glyph !== want.glyph) failures.push(`${c.name}: tones ${JSON.stringify(got)}, derived ${JSON.stringify(want)}`);
+                    const [lb, cb, hb] = toOklch(rgb(c.body));
+                    const g = toOklch(rgb(got.glyph));
+                    if (c.white) {
+                        if (got.glyph !== '#ffffff') failures.push(`${c.name}: the arrows are ${got.glyph}, want white on a body of lightness ${lb.toFixed(2)}`);
+                    } else {
+                        if (got.glyph === '#ffffff' || g[0] > 0.6) failures.push(`${c.name}: the arrows ${got.glyph} are not dark on a body of lightness ${lb.toFixed(2)}`);
+                        const dh = Math.abs(((g[2] - hb + 540) % 360) - 180);
+                        if (cb > 0.02 && dh > 25) failures.push(`${c.name}: the arrows ${got.glyph} have hue ${g[2].toFixed(0)}, the body ${hb.toFixed(0)}`);
+                    }
+                    // Painted: the arrow's pixel is the glyph tone under 13% white, the dark grip line is the deep tone
+                    // under 65.5% white and the shade, the light one is the body under the highlight's white.
+                    const shot: Buffer = await t.page.screenshot();
+                    const button = await t.box('auto', 'button-start-vertical');
+                    const thumb = await t.box('auto', 'thumb-vertical');
+                    const start = Math.floor((Math.round(thumb.height) - 8) / 2);
+                    const points: [number, number][] = [
+                        [Math.round(button.left) + 8, Math.round(button.top) + 7],
+                        [Math.round(thumb.left) + 5 + 3, Math.round(thumb.top) + start + 1],
+                        [Math.round(thumb.left) + 5 + 3, Math.round(thumb.top) + start],
+                    ];
+                    const [arrow, dark, light] = await t.call<number[][]>('pixels', shot.toString('base64'), points);
+                    const over = (base: number[], white: number): number[] => base.map((v) => v * (1 - white) + 255 * white);
+                    const sameish = (a: number[], b: number[]): boolean => a.every((v, i) => Math.abs(v - b[i]) <= 4);
+                    const wantArrow = over(rgb(got.glyph), 0.13);
+                    const wantDark = over(rgb(got.deep), 0.655).map((v) => v * (1 - c.shade * 0.22));
+                    const wantLight = over(rgb(c.body), c.highlight * 0.435);
+                    if (!sameish(arrow, wantArrow)) failures.push(`${c.name}: the arrow is painted ${arrow}, want ${wantArrow.map(Math.round)}`);
+                    if (!sameish(dark, wantDark)) failures.push(`${c.name}: the dark grip line is painted ${dark}, want ${wantDark.map(Math.round)}`);
+                    if (!sameish(light, wantLight)) failures.push(`${c.name}: the light grip line is painted ${light}, want ${wantLight.map(Math.round)}`);
+                } finally {
+                    await t.call('plainRemove', 'auto');
+                }
+            }
+            // A scheme that sets its tones keeps them: the tone of a shipped scheme is its own value, not a derived one.
+            const schemes: string = await t.call('lunaKit');
+            await t.call('plainMake', 'auto', schemes, { kit: 'luna', class: 'luna-olive', vertical: 'always', horizontal: 'never', snap: '' }, '<div style="height: 1500px"></div>');
+            try {
+                await t.frames(8);
+                const tone = (part: string, property: string) => t.call<string>('partToken', 'auto', part, property);
+                // Olive Green sets its glyph white itself; Blue's dark blue-grey arrows are its own too.
+                expect((await tone('button-start-vertical', '--luna-tone-glyph')) === 'rgb(255, 255, 255)' || (await tone('button-start-vertical', '--luna-tone-glyph')) === '#ffffff', `Olive Green's arrows: ${await tone('button-start-vertical', '--luna-tone-glyph')}`);
+                expect(!!(await tone('thumb-vertical', '--luna-tone-accent')), 'the accent of Olive Green is empty');
+                const olive = deriveTones(rgb('#aec193'), false);
+                expect(olive.glyph === '#ffffff', `the arrows derived for Olive Green's body are ${olive.glyph}, want white`);
+            } finally {
+                await t.call('plainRemove', 'auto');
+            }
+            expect(failures.length === 0, failures.join('; '));
+        },
+    },
+    {
+        name: 'Luna grip: four crisp light and dark lines at 100%, 110%, 125%, 150% and 200%, on vertical and horizontal thumbs of every length, at every scroll position',
+        run: async (t) => {
+            const failures: string[] = [];
+            const count = 12;
+            for (const dpr of [1, 1.1, 1.25, 1.5, 2]) {
+                const s = await t.real(dpr);
+                try {
+                    const schemes: string = await s.call('lunaKit');
+                    const got: number = await s.page.evaluate(() => window.devicePixelRatio);
+                    expect(Math.abs(got - dpr) < 1e-3, `the browser did not take the ratio ${dpr}: ${got}`);
+                    await s.call('lunaRow', count, '');
+                    for (const step of [0, 1, 3, 7]) {
+                        await s.call('lunaScroll', count, step);
+                        await s.call('settle');
+                        await Bun.sleep(400);
+                        await s.page.mouse.move(1400, 600);
+                        let previous = '';
+                        let shot: Buffer = await s.page.screenshot();
+                        // Wait until two screenshots agree, as a frame of the scroll may still be on its way.
+                        for (let i = 0; i < 10 && shot.toString('base64') !== previous; i++) {
+                            previous = shot.toString('base64');
+                            await Bun.sleep(250);
+                            shot = await s.page.screenshot();
+                        }
+                        const thumbs = await s.call('lunaThumbs', count);
+                        const problems: string[] = await s.call('gripCheck', shot.toString('base64'), dpr, thumbs);
+                        for (const problem of problems) failures.push(`dpr ${dpr} step ${step}: ${problem}`);
+                    }
+                    void schemes;
+                } finally {
+                    await s.close();
+                }
+            }
+            const kinds = new Map<string, number>();
+            for (const f of failures) kinds.set(f.replace(/ thumb \d+ \(\d+ device px\).*/, ''), (kinds.get(f.replace(/ thumb \d+ \(\d+ device px\).*/, '')) ?? 0) + 1);
+            expect(failures.length === 0, `${failures.length} grips are not crisp (${[...kinds].map(([k, n]) => `${k}: ${n}`).join(', ')}): ${failures.slice(0, 3).join('; ')}`);
+        },
+    },
+    {
         name: 'idle is free: after the bars settle, 3 s without a frame callback or a timer; the page bar follows its document by observation',
         run: async (t) => {
             const s = await t.scaled(1);
@@ -4176,6 +4296,9 @@ async function runBrowser(name: string): Promise<{ passed: number; total: number
             scaled: async () => {
                 throw new Error('scaled context not ready');
             },
+            real: async () => {
+                throw new Error('real context not ready');
+            },
             page,
             call,
             box: (id, n) => call('box', id, n),
@@ -4201,6 +4324,19 @@ async function runBrowser(name: string): Promise<{ passed: number; total: number
                 page: sp,
                 call: (fn: string, ...args: unknown[]) => sp.evaluate(([n, list]: [string, unknown[]]) => (window as any).axTest[n](...list), [fn, args]),
                 close: () => context.close(),
+            };
+        };
+
+        ctx.real = async (dpr) => {
+            const own = await pw[name].launch({ ...launch, args: [`--force-device-scale-factor=${dpr}`, '--window-size=1500,700', '--disable-gpu', '--disable-partial-raster'] });
+            const context = await own.newContext({ viewport: null });
+            const rp = await context.newPage();
+            await rp.goto(`http://127.0.0.1:${server.port}/`);
+            await rp.waitForFunction(() => (window as any).axReady === true);
+            return {
+                page: rp,
+                call: (fn: string, ...args: unknown[]) => rp.evaluate(([n, list]: [string, unknown[]]) => (window as any).axTest[n](...list), [fn, args]),
+                close: () => own.close(),
             };
         };
 

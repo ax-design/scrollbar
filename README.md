@@ -232,24 +232,39 @@ adoptLunaSchemes(); // adds the scheme classes to the document
 
 ```html
 <div class="luna-blue">
-  <ax-scroll-view kit="luna" style="height: 420px">...</ax-scroll-view>
+  <ax-scroll-view kit="luna" snap style="height: 420px">...</ax-scroll-view>
 </div>
 ```
+
+Use `snap` with the kit: it puts the thumb's edges on whole device pixels, and the kit then draws the four grip lines of the thumb as whole device pixels too, so that they stay four distinct lines at any zoom and any display scale (at 110%, 125% and 150% included).
 
 The schemes are the classes `luna-blue`, `luna-olive`, `luna-silver`, `luna-purple`, `luna-orange`, `luna-pink` and `luna-gold`, set on the scroll view or any ancestor (custom properties inherit into the parts). They are the string `lunaSchemes`, which `adoptLunaSchemes(root = document)` adopts once into a document or a shadow root; to link a file instead, write the string out and link it. Blue, Olive Green and Silver are the schemes of Windows XP.
 
 A scheme is a class of custom properties, so a custom scheme is a class that sets them, nothing else. The tones are colours: `--luna-accent`, `-accent-light`, `-accent-deep` (thumb, buttons), `--luna-glyph` (arrows, grip), `--luna-face` (track, corner) and `--luna-disabled`. The numbers are contrast, 0 to 1: `--luna-highlight`, `--luna-shade`, `--luna-gloss`, `--luna-depth`, `--luna-hot`, `--luna-press`, `--luna-etch` (and `--luna-relief`, which only the XP window of the demo reads). `--luna-light` (`top-left` or `top`) says where the light comes from, and `--luna-diagonal` and `--luna-glint` (0 or 1) switch two details of the arrow buttons. Every colour of the parts is a tone with white and black laid over it by those numbers, so a new scheme needs its tones and the numbers of the scheme it resembles; copy a class of `lunaSchemes` and change them. The sheet's header lists every property and the roles it reaches.
+
+One colour recolours a scheme. `--luna-accent-light` is the colour of the thumb and the buttons at rest, and `--luna-accent`, `--luna-accent-deep` and `--luna-glyph` may be `auto`, which is what they are when a scheme does not set them. The parts then derive them from `--luna-accent-light` in OKLCH, when the values of the scheme change: the hue of the colour is kept, the accent (rings, hot faces) and the deep tone (rings and edges when hot, the dark grip lines, shadows) are darker and more chromatic, and the arrows and the grip are a dark tone of the colour's hue on a light colour and white on a dark one. The relations are fitted to the shipped schemes (Blue, Purple, Orange and Pink for the Luna style, Silver and Gold for the metallic one) and are written down in `src/kits/luna/tones.ts`. A scheme that sets a tone keeps its own value.
 
 ```css
 .luna-moss {
   --luna-light: top-left; --luna-diagonal: 1; --luna-glint: 0;
   --luna-face: #e4e6d4; --luna-disabled: #f0f0e6;
   --luna-highlight: 1; --luna-shade: 0.72; --luna-gloss: 0.182; --luna-depth: 0.196; --luna-hot: 0.624; --luna-press: 0.675; --luna-etch: 0; --luna-relief: 1;
-  --luna-accent: #a9c98b; --luna-accent-light: #d3e6bf; --luna-accent-deep: #4a8a1f; --luna-glyph: #3f5230;
+  --luna-accent-light: #d3e6bf; /* the rest follows from this one */
 }
 ```
 
-The kit is also the worked example of writing a kit. Each of its parts extends the contract class of its kind (`AxScrollbarThumb`, `AxScrollbarButton`, ...) and brings the rules of its kind as its own shadow CSS (`static styles`, written on `:host` and its `::before` and `::after`); nothing is drawn from outside and none of the default look has to be switched off. Behaviour is the only code: the raised parts reflect `--luna-light` as the attribute `light`, because a selector can switch geometry on an attribute and not on the value of a property. The XP window around the scroll view in the demo is page CSS and not part of the kit.
+A scheme is metallic when it sets `--luna-light: top` and takes the numbers of Silver: a dark etched ring, a strong gloss and depth, and the light from straight above. The numbers that matter most are `--luna-gloss` and `--luna-depth` (the sheen of the faces) and `--luna-etch` (the ring). Its colour is again `--luna-accent-light`.
+
+```css
+.luna-steel {
+  --luna-light: top; --luna-diagonal: 0; --luna-glint: 0;
+  --luna-face: #e0dfe3; --luna-text: #0e1010; --luna-disabled: #f0f0e6;
+  --luna-highlight: 0.731; --luna-shade: 0.913; --luna-gloss: 1; --luna-depth: 1; --luna-hot: 1; --luna-press: 0; --luna-etch: 1; --luna-relief: 0.686;
+  --luna-accent-light: #d5dde8;
+}
+```
+
+The kit is also the worked example of writing a kit. Each of its parts extends the contract class of its kind (`AxScrollbarThumb`, `AxScrollbarButton`, ...) and brings the rules of its kind as its own shadow CSS (`static styles`, written on `:host` and its `::before` and `::after`); nothing is drawn from outside and none of the default look has to be switched off. Behaviour is the only code: the raised parts reflect `--luna-light` as the attribute `light`, because a selector can switch geometry on an attribute and not on the value of a property, and derive the tones left `auto`; the thumb also lays its grip out in device pixels. The XP window around the scroll view in the demo is page CSS and not part of the kit.
 
 ### Touch
 
@@ -283,7 +298,7 @@ On `<ax-scroll-view>` and `<ax-scrollbar>`. A change is picked up at once; a cha
 | `hide` | list of parts | The parts never shown. See [Hiding parts](#hiding-parts). |
 | `touch` | `indicator` (default), `bar` | What the bars are on touch. See [Touch](#touch). |
 | `track-click` | `page` (default), `jump` | A press on the track pages, or scrolls to the pointer. |
-| `snap` | boolean | Thumb edges and markers on whole device pixels, for themes that reproduce a desktop control. |
+| `snap` | boolean | Thumb edges and markers on whole device pixels, for themes that reproduce a desktop control. While it is set the thumb carries `--ax-scrollbar-thumb-nudge`, the distance in CSS px that something drawn inside the thumb adds to its place along the bar to land on whole device pixels, as the grip lines of the Luna kit do. |
 | `kit` | kit name | Build the parts with that kit. |
 | `marker-selector` | CSS selector | Makes markers of the matching elements. |
 | `marker-axis` | `vertical` (default), `horizontal` | Axis of the markers made of elements. |

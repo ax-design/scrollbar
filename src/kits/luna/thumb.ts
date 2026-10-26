@@ -221,6 +221,57 @@ export default `/* Windows XP (Luna) kit, the thumb: its geometry per axis, the 
         repeating-linear-gradient(to right, transparent 0 1px, var(--k-mark-b) 1px 2px) calc(50% + var(--k-out) / 2 - 0.25px) 4px / 8px 6px no-repeat border-box,
         repeating-linear-gradient(to right, transparent 0 1px, var(--k-mark-b-b) 1px 2px) calc(50% + var(--k-out) / 2 - 0.25px) 4px / 8px 6px no-repeat border-box;
 }
+/* Where a CSS px is not a whole number of device pixels (a zoom of 110% or 125%, a display scaled to 150%),
+   or where the thumb is moved by a fraction of one, a line of 1px covers a fraction of a device pixel at each
+   edge and the four lines run together. The thumb (index.ts) then sets its attribute \`grip\` and the grip is
+   drawn by two boxes of its own instead of the face's layers. The light box has the lines on the even units
+   and the dark box on the odd ones, a unit across from the light one, each 6 x 8 units, a unit being a
+   whole number of device pixels (--k-grip-unit; grip.ts). They are elements so that each is painted into
+   a rectangle the browser snaps as a whole, and they have the colours of the layers (three each: black
+   over white over the base). The thumb sets the other two tokens, the light box's offset from the thumb's
+   start along the bar and from its edge across it, in device pixels converted to CSS px. A snapped thumb
+   is moved by a fraction of a device pixel and the browser paints a gradient inside it at that fraction:
+   --ax-scrollbar-thumb-nudge (bar.ts) carries the boxes back onto whole pixels. */
+.grip {
+    display: none;
+    position: absolute;
+    z-index: 1;
+    pointer-events: none;
+}
+:host([grip="device"]) {
+    --k-grips: linear-gradient(transparent, transparent);
+    --k-grip-dir: to bottom;
+}
+:host([grip="device"][axis="horizontal"]) { --k-grip-dir: to right; }
+:host([grip="device"]) .grip { display: block; }
+:host([grip="device"][axis="vertical"]) .grip {
+    left: var(--k-grip-across);
+    top: var(--k-grip-along);
+    width: calc(var(--k-grip-unit) * 6);
+    height: calc(var(--k-grip-unit) * 8);
+    transform: translate(0, var(--ax-scrollbar-thumb-nudge, 0px));
+}
+:host([grip="device"][axis="horizontal"]) .grip {
+    left: var(--k-grip-along);
+    top: var(--k-grip-across);
+    width: calc(var(--k-grip-unit) * 8);
+    height: calc(var(--k-grip-unit) * 6);
+    transform: translate(var(--ax-scrollbar-thumb-nudge, 0px), 0);
+}
+:host([grip="device"][axis="vertical"]) .grip-b { left: calc(var(--k-grip-across) + var(--k-grip-unit)); }
+:host([grip="device"][axis="horizontal"]) .grip-b { top: calc(var(--k-grip-across) + var(--k-grip-unit)); }
+.grip-a {
+    background-image:
+        repeating-linear-gradient(var(--k-grip-dir), var(--k-mark-a-k) 0 var(--k-grip-unit), transparent var(--k-grip-unit) calc(var(--k-grip-unit) * 2)),
+        repeating-linear-gradient(var(--k-grip-dir), var(--k-mark-a) 0 var(--k-grip-unit), transparent var(--k-grip-unit) calc(var(--k-grip-unit) * 2)),
+        repeating-linear-gradient(var(--k-grip-dir), var(--k-mark-a-b) 0 var(--k-grip-unit), transparent var(--k-grip-unit) calc(var(--k-grip-unit) * 2));
+}
+.grip-b {
+    background-image:
+        repeating-linear-gradient(var(--k-grip-dir), transparent 0 var(--k-grip-unit), var(--k-mark-b-k) var(--k-grip-unit) calc(var(--k-grip-unit) * 2)),
+        repeating-linear-gradient(var(--k-grip-dir), transparent 0 var(--k-grip-unit), var(--k-mark-b) var(--k-grip-unit) calc(var(--k-grip-unit) * 2)),
+        repeating-linear-gradient(var(--k-grip-dir), transparent 0 var(--k-grip-unit), var(--k-mark-b-b) var(--k-grip-unit) calc(var(--k-grip-unit) * 2));
+}
 /* Thumb: as wide as the bar, like the buttons (the theme stretches the thumb image to fill it; the
    contract thumb does that). The theme allows a thumb down to 8px: the bar's token, set on the thumb. */
 :host { --ax-scrollbar-thumb-min-length: 8px; }

@@ -4,6 +4,14 @@ export default `/* Windows XP (Luna) scrollbar kit, the shades: the colours of e
    piece) adopts this block ahead of its own rules (kits/luna.ts), so the scheme's values inherited
    from the page resolve on the part itself. */
 
+/* The tones the roles use. A scheme's own value stands as it is; a tone the scheme leaves \`auto\` is
+   derived from \`--luna-accent-light\` by the part (tones.ts) and written on the part, over these. */
+:host {
+    --luna-tone-accent: var(--luna-accent);
+    --luna-tone-accent-deep: var(--luna-accent-deep);
+    --luna-tone-glyph: var(--luna-glyph);
+}
+
 :host {
     /* track-a: face */
     --luna-track-a: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.44));
@@ -43,15 +51,15 @@ export default `/* Windows XP (Luna) scrollbar kit, the shades: the colours of e
     /* thumb-ring: accent */
     --luna-thumb-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.085));
     --luna-thumb-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.27));
-    --luna-thumb-ring-base: var(--luna-accent);
+    --luna-thumb-ring-base: var(--luna-tone-accent);
     /* thumb-ring-top: accent */
     --luna-thumb-ring-top: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.205));
     --luna-thumb-ring-top-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.185));
-    --luna-thumb-ring-top-base: var(--luna-accent);
+    --luna-thumb-ring-top-base: var(--luna-tone-accent);
     /* thumb-ring-bottom: accent */
     --luna-thumb-ring-bottom: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.115));
     --luna-thumb-ring-bottom-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.245));
-    --luna-thumb-ring-bottom-base: var(--luna-accent);
+    --luna-thumb-ring-bottom-base: var(--luna-tone-accent);
     /* thumb-ring-fill: accent-light */
     --luna-thumb-ring-fill: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.735));
     --luna-thumb-ring-fill-k: transparent;
@@ -95,7 +103,7 @@ export default `/* Windows XP (Luna) scrollbar kit, the shades: the colours of e
     /* thumb-end: accent */
     --luna-thumb-end: rgba(255, 255, 255, 0.165);
     --luna-thumb-end-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.245));
-    --luna-thumb-end-base: var(--luna-accent);
+    --luna-thumb-end-base: var(--luna-tone-accent);
 
     /* grip-a: accent-light */
     --luna-grip-a: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.435));
@@ -104,56 +112,56 @@ export default `/* Windows XP (Luna) scrollbar kit, the shades: the colours of e
     /* grip-b: accent-deep */
     --luna-grip-b: rgba(255, 255, 255, 0.655);
     --luna-grip-b-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.22));
-    --luna-grip-b-base: var(--luna-accent-deep);
+    --luna-grip-b-base: var(--luna-tone-accent-deep);
 
     /* thumb-hot-ring: accent-deep */
     --luna-thumb-hot-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.145));
     --luna-thumb-hot-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.55));
-    --luna-thumb-hot-ring-base: var(--luna-accent-deep);
+    --luna-thumb-hot-ring-base: var(--luna-tone-accent-deep);
     /* thumb-hot-ring-top: accent-deep */
     --luna-thumb-hot-ring-top: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.145));
     --luna-thumb-hot-ring-top-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.55));
-    --luna-thumb-hot-ring-top-base: var(--luna-accent-deep);
+    --luna-thumb-hot-ring-top-base: var(--luna-tone-accent-deep);
     /* thumb-hot-ring-bottom: accent-deep */
     --luna-thumb-hot-ring-bottom: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.145));
     --luna-thumb-hot-ring-bottom-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.55));
-    --luna-thumb-hot-ring-bottom-base: var(--luna-accent-deep);
+    --luna-thumb-hot-ring-bottom-base: var(--luna-tone-accent-deep);
     /* thumb-hot-ring-fill: accent */
     --luna-thumb-hot-ring-fill: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.595 + var(--luna-hot) * 0.51));
     --luna-thumb-hot-ring-fill-k: transparent;
-    --luna-thumb-hot-ring-fill-base: var(--luna-accent);
+    --luna-thumb-hot-ring-fill-base: var(--luna-tone-accent);
     /* thumb-hot-edge-a: accent-deep */
     --luna-thumb-hot-edge-a: rgba(255, 255, 255, calc(var(--luna-hot) * 1.075));
     --luna-thumb-hot-edge-a-k: transparent;
-    --luna-thumb-hot-edge-a-base: var(--luna-accent-deep);
+    --luna-thumb-hot-edge-a-base: var(--luna-tone-accent-deep);
     /* thumb-hot-edge-b: accent-deep */
     --luna-thumb-hot-edge-b: rgba(255, 255, 255, calc(var(--luna-hot)));
     --luna-thumb-hot-edge-b-k: transparent;
-    --luna-thumb-hot-edge-b-base: var(--luna-accent-deep);
+    --luna-thumb-hot-edge-b-base: var(--luna-tone-accent-deep);
     /* thumb-hot-edge-right: accent-deep */
     --luna-thumb-hot-edge-right: rgba(255, 255, 255, calc(0.01 + var(--luna-hot) * 1.05));
     --luna-thumb-hot-edge-right-k: transparent;
-    --luna-thumb-hot-edge-right-base: var(--luna-accent-deep);
+    --luna-thumb-hot-edge-right-base: var(--luna-tone-accent-deep);
     /* thumb-hot-edge-bottom: accent */
     --luna-thumb-hot-edge-bottom: rgba(255, 255, 255, calc(var(--luna-hot) * 0.795));
     --luna-thumb-hot-edge-bottom-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.045));
-    --luna-thumb-hot-edge-bottom-base: var(--luna-accent);
+    --luna-thumb-hot-edge-bottom-base: var(--luna-tone-accent);
     /* thumb-hot-fill-a: accent-deep */
     --luna-thumb-hot-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.465 + var(--luna-hot) * 1.23));
     --luna-thumb-hot-fill-a-k: transparent;
-    --luna-thumb-hot-fill-a-base: var(--luna-accent-deep);
+    --luna-thumb-hot-fill-a-base: var(--luna-tone-accent-deep);
     /* thumb-hot-fill-b: accent */
     --luna-thumb-hot-fill-b: rgba(255, 255, 255, calc(var(--luna-hot) * 1.23));
     --luna-thumb-hot-fill-b-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.1));
-    --luna-thumb-hot-fill-b-base: var(--luna-accent);
+    --luna-thumb-hot-fill-b-base: var(--luna-tone-accent);
     /* thumb-hot-fill-c: accent */
     --luna-thumb-hot-fill-c: rgba(255, 255, 255, calc(var(--luna-hot) * 0.75));
     --luna-thumb-hot-fill-c-k: transparent;
-    --luna-thumb-hot-fill-c-base: var(--luna-accent);
+    --luna-thumb-hot-fill-c-base: var(--luna-tone-accent);
     /* thumb-hot-light: accent */
     --luna-thumb-hot-light: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.09 + var(--luna-hot)));
     --luna-thumb-hot-light-k: transparent;
-    --luna-thumb-hot-light-base: var(--luna-accent);
+    --luna-thumb-hot-light-base: var(--luna-tone-accent);
     /* thumb-hot-side: accent-light */
     --luna-thumb-hot-side: rgba(255, 255, 255, calc(0.065 + var(--luna-hot) * 0.075));
     --luna-thumb-hot-side-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.245));
@@ -161,29 +169,29 @@ export default `/* Windows XP (Luna) scrollbar kit, the shades: the colours of e
     /* thumb-hot-end: accent */
     --luna-thumb-hot-end: rgba(255, 255, 255, calc(var(--luna-hot) * 0.31));
     --luna-thumb-hot-end-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.245));
-    --luna-thumb-hot-end-base: var(--luna-accent);
+    --luna-thumb-hot-end-base: var(--luna-tone-accent);
 
     /* grip-hot-a: accent-deep */
     --luna-grip-hot-a: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.265 + var(--luna-hot) * 1.25));
     --luna-grip-hot-a-k: transparent;
-    --luna-grip-hot-a-base: var(--luna-accent-deep);
+    --luna-grip-hot-a-base: var(--luna-tone-accent-deep);
     /* grip-hot-b: accent */
     --luna-grip-hot-b: rgba(255, 255, 255, calc(0.005 + var(--luna-hot) * 0.545));
     --luna-grip-hot-b-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.035));
-    --luna-grip-hot-b-base: var(--luna-accent);
+    --luna-grip-hot-b-base: var(--luna-tone-accent);
 
     /* thumb-pressed-ring: accent-deep */
     --luna-thumb-pressed-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.185));
     --luna-thumb-pressed-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.685));
-    --luna-thumb-pressed-ring-base: var(--luna-accent-deep);
+    --luna-thumb-pressed-ring-base: var(--luna-tone-accent-deep);
     /* thumb-pressed-ring-top: accent-deep */
     --luna-thumb-pressed-ring-top: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.185));
     --luna-thumb-pressed-ring-top-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.685));
-    --luna-thumb-pressed-ring-top-base: var(--luna-accent-deep);
+    --luna-thumb-pressed-ring-top-base: var(--luna-tone-accent-deep);
     /* thumb-pressed-ring-bottom: accent-deep */
     --luna-thumb-pressed-ring-bottom: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.185));
     --luna-thumb-pressed-ring-bottom-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.685));
-    --luna-thumb-pressed-ring-bottom-base: var(--luna-accent-deep);
+    --luna-thumb-pressed-ring-bottom-base: var(--luna-tone-accent-deep);
     /* thumb-pressed-ring-fill: accent-light */
     --luna-thumb-pressed-ring-fill: transparent;
     --luna-thumb-pressed-ring-fill-k: rgba(0, 0, 0, 0.035);
@@ -207,7 +215,7 @@ export default `/* Windows XP (Luna) scrollbar kit, the shades: the colours of e
     /* thumb-pressed-fill-a: accent */
     --luna-thumb-pressed-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.89));
     --luna-thumb-pressed-fill-a-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.075));
-    --luna-thumb-pressed-fill-a-base: var(--luna-accent);
+    --luna-thumb-pressed-fill-a-base: var(--luna-tone-accent);
     /* thumb-pressed-fill-b: accent-light */
     --luna-thumb-pressed-fill-b: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.475));
     --luna-thumb-pressed-fill-b-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.115));
@@ -215,7 +223,7 @@ export default `/* Windows XP (Luna) scrollbar kit, the shades: the colours of e
     /* thumb-pressed-fill-c: accent */
     --luna-thumb-pressed-fill-c: rgba(255, 255, 255, calc(var(--luna-gloss)));
     --luna-thumb-pressed-fill-c-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.08));
-    --luna-thumb-pressed-fill-c-base: var(--luna-accent);
+    --luna-thumb-pressed-fill-c-base: var(--luna-tone-accent);
     /* thumb-pressed-light: accent-light */
     --luna-thumb-pressed-light: transparent;
     --luna-thumb-pressed-light-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.325));
@@ -227,7 +235,7 @@ export default `/* Windows XP (Luna) scrollbar kit, the shades: the colours of e
     /* thumb-pressed-end: accent */
     --luna-thumb-pressed-end: rgba(255, 255, 255, 0.165);
     --luna-thumb-pressed-end-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.25));
-    --luna-thumb-pressed-end-base: var(--luna-accent);
+    --luna-thumb-pressed-end-base: var(--luna-tone-accent);
 
     /* grip-pressed-a: accent-light */
     --luna-grip-pressed-a: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.155));
@@ -236,7 +244,7 @@ export default `/* Windows XP (Luna) scrollbar kit, the shades: the colours of e
     /* grip-pressed-b: accent-deep */
     --luna-grip-pressed-b: rgba(255, 255, 255, 0.595);
     --luna-grip-pressed-b-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.06 + var(--luna-press) * 0.285));
-    --luna-grip-pressed-b-base: var(--luna-accent-deep);
+    --luna-grip-pressed-b-base: var(--luna-tone-accent-deep);
 
     /* button-ring: accent-light */
     --luna-button-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.97));
@@ -285,16 +293,16 @@ export default `/* Windows XP (Luna) scrollbar kit, the shades: the colours of e
     /* button-side: accent */
     --luna-button-side: rgba(255, 255, 255, 0.345);
     --luna-button-side-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.3));
-    --luna-button-side-base: var(--luna-accent);
+    --luna-button-side-base: var(--luna-tone-accent);
     /* button-end: accent */
     --luna-button-end: rgba(255, 255, 255, 0.12);
     --luna-button-end-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.195));
-    --luna-button-end-base: var(--luna-accent);
+    --luna-button-end-base: var(--luna-tone-accent);
 
     /* glyph-normal: glyph */
     --luna-glyph-normal: rgba(255, 255, 255, 0.13);
     --luna-glyph-normal-k: transparent;
-    --luna-glyph-normal-base: var(--luna-glyph);
+    --luna-glyph-normal-base: var(--luna-tone-glyph);
 
     /* button-glint: accent-light */
     --luna-button-glint: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.19));
@@ -304,78 +312,78 @@ export default `/* Windows XP (Luna) scrollbar kit, the shades: the colours of e
     /* button-hot-ring: accent-deep */
     --luna-button-hot-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.98 + var(--luna-hot) * 0.025));
     --luna-button-hot-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.5));
-    --luna-button-hot-ring-base: var(--luna-accent-deep);
+    --luna-button-hot-ring-base: var(--luna-tone-accent-deep);
     /* button-hot-ring-top: accent-deep */
     --luna-button-hot-ring-top: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.985 + var(--luna-hot) * 0.015));
     --luna-button-hot-ring-top-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.495));
-    --luna-button-hot-ring-top-base: var(--luna-accent-deep);
+    --luna-button-hot-ring-top-base: var(--luna-tone-accent-deep);
     /* button-hot-ring-bottom: accent-deep */
     --luna-button-hot-ring-bottom: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.03));
     --luna-button-hot-ring-bottom-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.5));
-    --luna-button-hot-ring-bottom-base: var(--luna-accent-deep);
+    --luna-button-hot-ring-bottom-base: var(--luna-tone-accent-deep);
     /* button-hot-ring-fill: accent-deep */
     --luna-button-hot-ring-fill: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.4 + var(--luna-hot) * 0.79));
     --luna-button-hot-ring-fill-k: rgba(0, 0, 0, 0.09);
-    --luna-button-hot-ring-fill-base: var(--luna-accent-deep);
+    --luna-button-hot-ring-fill-base: var(--luna-tone-accent-deep);
     /* button-hot-edge-a: accent-deep */
     --luna-button-hot-edge-a: rgba(255, 255, 255, calc(var(--luna-hot)));
     --luna-button-hot-edge-a-k: transparent;
-    --luna-button-hot-edge-a-base: var(--luna-accent-deep);
+    --luna-button-hot-edge-a-base: var(--luna-tone-accent-deep);
     /* button-hot-edge-b: accent-deep */
     --luna-button-hot-edge-b: rgba(255, 255, 255, calc(var(--luna-hot)));
     --luna-button-hot-edge-b-k: rgba(0, 0, 0, 0.06);
-    --luna-button-hot-edge-b-base: var(--luna-accent-deep);
+    --luna-button-hot-edge-b-base: var(--luna-tone-accent-deep);
     /* button-hot-edge-right: accent-deep */
     --luna-button-hot-edge-right: rgba(255, 255, 255, calc(var(--luna-hot)));
     --luna-button-hot-edge-right-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.01));
-    --luna-button-hot-edge-right-base: var(--luna-accent-deep);
+    --luna-button-hot-edge-right-base: var(--luna-tone-accent-deep);
     /* button-hot-edge-bottom: accent-deep */
     --luna-button-hot-edge-bottom: rgba(255, 255, 255, calc(var(--luna-hot)));
     --luna-button-hot-edge-bottom-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.155));
-    --luna-button-hot-edge-bottom-base: var(--luna-accent-deep);
+    --luna-button-hot-edge-bottom-base: var(--luna-tone-accent-deep);
     /* button-hot-fill-a: accent-deep */
     --luna-button-hot-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 1.025 + var(--luna-hot) * 1.25));
     --luna-button-hot-fill-a-k: transparent;
-    --luna-button-hot-fill-a-base: var(--luna-accent-deep);
+    --luna-button-hot-fill-a-base: var(--luna-tone-accent-deep);
     /* button-hot-fill-b: accent-deep */
     --luna-button-hot-fill-b: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.51 + var(--luna-hot) * 1.21));
     --luna-button-hot-fill-b-k: rgba(0, 0, 0, calc(var(--luna-depth) * 0.025));
-    --luna-button-hot-fill-b-base: var(--luna-accent-deep);
+    --luna-button-hot-fill-b-base: var(--luna-tone-accent-deep);
     /* button-hot-fill-c: accent */
     --luna-button-hot-fill-c: rgba(255, 255, 255, calc(var(--luna-hot) * 0.76));
     --luna-button-hot-fill-c-k: transparent;
-    --luna-button-hot-fill-c-base: var(--luna-accent);
+    --luna-button-hot-fill-c-base: var(--luna-tone-accent);
     /* button-hot-side: accent */
     --luna-button-hot-side: rgba(255, 255, 255, calc(var(--luna-hot) * 0.13));
     --luna-button-hot-side-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.295));
-    --luna-button-hot-side-base: var(--luna-accent);
+    --luna-button-hot-side-base: var(--luna-tone-accent);
     /* button-hot-end: accent-deep */
     --luna-button-hot-end: rgba(255, 255, 255, calc(0.02 + var(--luna-hot) * 0.78));
     --luna-button-hot-end-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.215));
-    --luna-button-hot-end-base: var(--luna-accent-deep);
+    --luna-button-hot-end-base: var(--luna-tone-accent-deep);
 
     /* glyph-hot: glyph */
     --luna-glyph-hot: rgba(255, 255, 255, 0.04);
     --luna-glyph-hot-k: transparent;
-    --luna-glyph-hot-base: var(--luna-glyph);
+    --luna-glyph-hot-base: var(--luna-tone-glyph);
 
     /* button-hot-glint: accent-deep */
     --luna-button-hot-glint: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.035 + var(--luna-hot) * 0.92));
     --luna-button-hot-glint-k: rgba(0, 0, 0, 0.155);
-    --luna-button-hot-glint-base: var(--luna-accent-deep);
+    --luna-button-hot-glint-base: var(--luna-tone-accent-deep);
 
     /* button-pressed-ring: accent-deep */
     --luna-button-pressed-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.14));
     --luna-button-pressed-ring-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.55 + var(--luna-press) * 0.015));
-    --luna-button-pressed-ring-base: var(--luna-accent-deep);
+    --luna-button-pressed-ring-base: var(--luna-tone-accent-deep);
     /* button-pressed-ring-top: accent-deep */
     --luna-button-pressed-ring-top: rgba(255, 255, 255, calc(var(--luna-highlight)));
     --luna-button-pressed-ring-top-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.49));
-    --luna-button-pressed-ring-top-base: var(--luna-accent-deep);
+    --luna-button-pressed-ring-top-base: var(--luna-tone-accent-deep);
     /* button-pressed-ring-bottom: accent-deep */
     --luna-button-pressed-ring-bottom: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.145));
     --luna-button-pressed-ring-bottom-k: rgba(0, 0, 0, calc(var(--luna-etch) * 0.55 + var(--luna-press) * 0.015));
-    --luna-button-pressed-ring-bottom-base: var(--luna-accent-deep);
+    --luna-button-pressed-ring-bottom-base: var(--luna-tone-accent-deep);
     /* button-pressed-ring-fill: accent-light */
     --luna-button-pressed-ring-fill: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.035));
     --luna-button-pressed-ring-fill-k: rgba(0, 0, 0, 0.11);
@@ -395,15 +403,15 @@ export default `/* Windows XP (Luna) scrollbar kit, the shades: the colours of e
     /* button-pressed-edge-bottom: accent */
     --luna-button-pressed-edge-bottom: rgba(255, 255, 255, 0.65);
     --luna-button-pressed-edge-bottom-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.135));
-    --luna-button-pressed-edge-bottom-base: var(--luna-accent);
+    --luna-button-pressed-edge-bottom-base: var(--luna-tone-accent);
     /* button-pressed-fill-a: accent */
     --luna-button-pressed-fill-a: rgba(255, 255, 255, calc(var(--luna-gloss) * 0.77));
     --luna-button-pressed-fill-a-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.105));
-    --luna-button-pressed-fill-a-base: var(--luna-accent);
+    --luna-button-pressed-fill-a-base: var(--luna-tone-accent);
     /* button-pressed-fill-b: accent */
     --luna-button-pressed-fill-b: rgba(255, 255, 255, calc(var(--luna-gloss)));
     --luna-button-pressed-fill-b-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.105));
-    --luna-button-pressed-fill-b-base: var(--luna-accent);
+    --luna-button-pressed-fill-b-base: var(--luna-tone-accent);
     /* button-pressed-fill-c: accent-light */
     --luna-button-pressed-fill-c: rgba(255, 255, 255, calc(var(--luna-gloss) * 1.25));
     --luna-button-pressed-fill-c-k: rgba(0, 0, 0, calc(var(--luna-press) * 0.185));
@@ -411,21 +419,21 @@ export default `/* Windows XP (Luna) scrollbar kit, the shades: the colours of e
     /* button-pressed-side: accent */
     --luna-button-pressed-side: rgba(255, 255, 255, 0.4);
     --luna-button-pressed-side-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.3));
-    --luna-button-pressed-side-base: var(--luna-accent);
+    --luna-button-pressed-side-base: var(--luna-tone-accent);
     /* button-pressed-end: accent */
     --luna-button-pressed-end: rgba(255, 255, 255, 0.12);
     --luna-button-pressed-end-k: rgba(0, 0, 0, calc(var(--luna-shade) * 0.18 + var(--luna-press) * 0.015));
-    --luna-button-pressed-end-base: var(--luna-accent);
+    --luna-button-pressed-end-base: var(--luna-tone-accent);
 
     /* glyph-pressed: glyph */
     --luna-glyph-pressed: rgba(255, 255, 255, 0.04);
     --luna-glyph-pressed-k: transparent;
-    --luna-glyph-pressed-base: var(--luna-glyph);
+    --luna-glyph-pressed-base: var(--luna-tone-glyph);
 
     /* button-pressed-glint: accent */
     --luna-button-pressed-glint: rgba(255, 255, 255, calc(var(--luna-highlight) * 0.28));
     --luna-button-pressed-glint-k: rgba(0, 0, 0, calc(0.105 + var(--luna-press) * 0.25));
-    --luna-button-pressed-glint-base: var(--luna-accent);
+    --luna-button-pressed-glint-base: var(--luna-tone-accent);
 
     /* button-disabled-ring: disabled */
     --luna-button-disabled-ring: rgba(255, 255, 255, calc(var(--luna-highlight) * 1.25));

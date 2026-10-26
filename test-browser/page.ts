@@ -277,6 +277,140 @@ const axTest = {
         plains.set(id, { host, view });
     },
 
+    // A row of Luna scroll views in one shadow root, for the grip checks: `count` vertical ones above `count`
+    // horizontal ones, of growing lengths, at fractional places, with snap. Returns where their thumbs are.
+    lunaRow(count: number, css: string): void {
+        if (!hasScrollbarKit('luna')) defineLunaKit();
+        const host = document.createElement('div');
+        host.style.cssText = 'position: fixed; left: 0; top: 0; width: 1400px; height: 420px; z-index: 100; background: #fff;';
+        const shadow = host.attachShadow({ mode: 'open' });
+        const style = document.createElement('style');
+        style.textContent = `${lunaSchemes} ax-scroll-view { position: absolute; display: block; background: #f4f4f4; --ax-scrollbar-repeat-delay: 60s; } ${css}`;
+        shadow.appendChild(style);
+        // The horizontal views lie in two rows, each after the other.
+        let after = [10, 10];
+        for (let i = 0; i < count; i++) {
+            for (const axis of ['vertical', 'horizontal'] as const) {
+                const view = document.createElement('ax-scroll-view');
+                for (const [name, value] of Object.entries({ kit: 'luna', class: 'luna-blue', snap: '', touch: 'bar', [axis]: 'always', [axis === 'vertical' ? 'horizontal' : 'vertical']: 'never' })) view.setAttribute(name, value);
+                const long = 101 + i * 9;
+                const wide = Math.round(long * (1.25 + i * 0.11));
+                const row = i < count / 2 ? 0 : 1;
+                const left = (axis === 'vertical' ? 10 + i * 66 : after[row]) + (i % 3) * 0.37;
+                const top = (axis === 'vertical' ? 10 : 190 + row * 100) + (i % 4) * 0.21;
+                if (axis === 'horizontal') after[row] += long - 20 + 12;
+                view.style.cssText = axis === 'vertical' ? `left: ${left}px; top: ${top}px; width: 60px; height: ${long}px;` : `left: ${left}px; top: ${top}px; width: ${long - 20}px; height: 60px;`;
+                view.innerHTML = axis === 'vertical' ? `<div style="width: 40px; height: ${wide}px"></div>` : `<div style="height: 40px; width: ${Math.round((long - 20) * (1.25 + i * 0.11))}px"></div>`;
+                shadow.appendChild(view);
+                plains.set(`lg-${axis}-${i}`, { host, view });
+            }
+        }
+        document.body.appendChild(host);
+    },
+
+    lunaRowRemove(count: number): void {
+        for (let i = 0; i < count; i++) for (const axis of ['vertical', 'horizontal']) plains.delete(`lg-${axis}-${i}`);
+        document.querySelectorAll('body > div').forEach((n) => {
+            if ((n as HTMLElement).style.width === '1400px') n.remove();
+        });
+    },
+
+    // Every view of the row scrolled to `step` times its own stride.
+    lunaScroll(count: number, step: number): void {
+        for (let i = 0; i < count; i++) {
+            for (const axis of ['vertical', 'horizontal']) {
+                const view = el(`lg-${axis}-${i}`) as HTMLElement;
+                if (axis === 'vertical') view.scrollTop = step * (3 + i * 2) + i;
+                else view.scrollLeft = step * (3 + i * 2) + i;
+            }
+        }
+    },
+
+    // The thumbs of the row in CSS px.
+    lunaThumbs(count: number): { axis: string; l: number; t: number; w: number; h: number }[] {
+        const out: { axis: string; l: number; t: number; w: number; h: number }[] = [];
+        for (let i = 0; i < count; i++) {
+            for (const axis of ['vertical', 'horizontal']) {
+                const r = target(`lg-${axis}-${i}`, `thumb-${axis}`).getBoundingClientRect();
+                out.push({ axis, l: r.left, t: r.top, w: r.width, h: r.height });
+            }
+        }
+        return out;
+    },
+
+    // The pixels of a screenshot (base64 of a PNG) at the given device pixels, as [r, g, b] each.
+    async pixels(b64: string, points: [number, number][]): Promise<number[][]> {
+        const img = await createImageBitmap(await (await fetch('data:image/png;base64,' + b64)).blob());
+        const canvas = new OffscreenCanvas(img.width, img.height);
+        const g = canvas.getContext('2d')!;
+        g.drawImage(img, 0, 0);
+        return points.map(([x, y]) => Array.from(g.getImageData(x, y, 1, 1).data.slice(0, 3)));
+    },
+
+    // Whether the grip of every thumb of a screenshot is crisp. A grip is crisp when, down the middle of
+    // its lines, there are eight rows of `n` device pixels (n = round(dpr), as a line is) that alternate
+    // between one light colour and one dark colour, and every row is of one colour from end to end; it
+    // is centred as the theme centres it. Returns what is wrong, one string per thumb.
+    async gripCheck(b64: string, dpr: number, thumbs: { axis: string; l: number; t: number; w: number; h: number }[]): Promise<string[]> {
+        const img = await createImageBitmap(await (await fetch('data:image/png;base64,' + b64)).blob());
+        const canvas = new OffscreenCanvas(img.width, img.height);
+        const g = canvas.getContext('2d')!;
+        g.drawImage(img, 0, 0);
+        const data = g.getImageData(0, 0, img.width, img.height).data;
+        const px = (x: number, y: number): number[] => {
+            const o = (y * img.width + x) * 4;
+            return [data[o], data[o + 1], data[o + 2]];
+        };
+        const same = (a: number[], b: number[]): boolean => Math.abs(a[0] - b[0]) <= 2 && Math.abs(a[1] - b[1]) <= 2 && Math.abs(a[2] - b[2]) <= 2;
+        const n = Math.max(1, Math.round(dpr));
+        const across = Math.round(5 * dpr);
+        const problems: string[] = [];
+        thumbs.forEach((th, index) => {
+            const vertical = th.axis === 'vertical';
+            const x0 = Math.round(th.l * dpr);
+            const y0 = Math.round(th.t * dpr);
+            const length = Math.round((vertical ? th.h : th.w) * dpr);
+            const at = (along: number, cross: number): number[] => (vertical ? px(x0 + cross, y0 + along) : px(x0 + along, y0 + cross));
+            const name = `${th.axis} thumb ${index >> 1} (${length} device px)`;
+            const runs: { c: number[]; start: number; len: number }[] = [];
+            for (let a = 0; a < length; a++) {
+                const c = at(a, across + 3 * n);
+                const last = runs[runs.length - 1];
+                if (last && same(last.c, c)) last.len++;
+                else runs.push({ c, start: a, len: 1 });
+            }
+            let found = -1;
+            for (let s = 0; s + 8 <= runs.length && found < 0; s++) {
+                const w = runs.slice(s, s + 8);
+                if (w.every((r) => r.len === n) && [2, 4, 6].every((k) => same(w[0].c, w[k].c)) && [3, 5, 7].every((k) => same(w[1].c, w[k].c)) && !same(w[0].c, w[1].c)) found = s;
+            }
+            if (found < 0) {
+                problems.push(`${name}: no eight alternating rows of ${n} px (runs ${runs.map((r) => `${r.len}@${r.c.join('.')}`).join(' ')})`);
+                return;
+            }
+            const want = Math.max(0, Math.floor((length - 8 * n) / 2));
+            if (runs[found].start !== want) problems.push(`${name}: the grip starts at ${runs[found].start}, centred is ${want}`);
+            for (let k = 0; k < 8; k++) {
+                for (let r = 0; r < n; r++) {
+                    const row = runs[found + k].start + r;
+                    const first = at(row, across + n);
+                    for (let cross = across + n; cross < across + 6 * n; cross++) {
+                        if (!same(at(row, cross), first)) {
+                            problems.push(`${name}: line ${k} is not of one colour (pixel ${cross - across - n} of its row: ${Array.from({ length: 8 * n }, (_, q) => at(row, across + q).join('.')).join(' ')})`);
+                            return;
+                        }
+                    }
+                }
+            }
+        });
+        return problems;
+    },
+
+    // A custom property as computed on a part.
+    partToken(id: string, name: string, property: string): string {
+        return getComputedStyle(target(id, name)).getPropertyValue(property).trim();
+    },
+
     // Replaces the page scrollbar by one of the given attributes, with a style sheet in the document.
     makePage(css: string, attrs: Record<string, string>): void {
         document.getElementById('page')?.remove();

@@ -10,6 +10,24 @@ import type { Axis } from './types.js';
 const round = (n: number): number => Math.round(n * 100) / 100;
 const px = (n: number): string => `${round(n)}px`;
 
+// Set on the thumb while the bar snaps (see `snap`): the distance in CSS px that something drawn inside
+// the thumb adds to its place along the bar to be painted on whole device pixels. When the track starts
+// at a fraction of a device pixel, a snapped thumb is moved by a translate of a fraction of one, so that
+// its edges are on the grid of the screen; the browser then paints a gradient inside it at that
+// fraction, and a line one device pixel thick covers two rows. The box of the thumb is drawn from the
+// track's place rounded to a whole pixel, and the nudge is the difference between the two places.
+export const THUMB_NUDGE = '--ax-scrollbar-thumb-nudge';
+
+// The nudge of a thumb moved by `translate` CSS px. The thumb's edge is on a whole device pixel of the
+// screen, so the track's place is a whole number of device pixels less the translate, and its rounding
+// error is the nudge.
+function nudge(translate: number): number {
+    const ratio = window.devicePixelRatio || 1;
+    // To a millionth of a pixel: a tie (the track at half a device pixel) must stay one, as it is for the browser.
+    const track = Math.round(-translate * ratio * 1e6) / 1e6;
+    return Math.round((track - Math.round(track)) * 1e4) / 1e4 / ratio;
+}
+
 // The state every part of a bar shares: the bar's, not the part's own.
 export type BarState = Pick<PartState, 'indicator' | 'disabled' | 'engaged' | 'rtl'>;
 
@@ -129,6 +147,7 @@ export class Bar {
         const thumbStart = start(layout.thumbOffset, layout.thumbLength);
         writeStyle(this.thumb.el, length, len(layout.thumbLength));
         writeStyle(this.thumb.el, 'transform', move(thumbStart));
+        writeStyle(this.thumb.el, THUMB_NUDGE, exact ? `${nudge(thumbStart)}px` : '');
 
         // A piece is the whole track clipped to its side of the thumb (see AxScrollbarTrackPiece).
         // Across the axis nothing is clipped: the piece may slide out of the track (the default
