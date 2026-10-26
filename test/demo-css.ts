@@ -3,7 +3,7 @@
 // the states of a part are written in the order of the cascade (rest, engaged, hover, pressed; markers:
 // rest, engaged, current, on thumb, hover, on thumb and hover, pressed).
 import { CORE_SCHEMA } from '@ax-design/surface/schema';
-import { CSS_PROPERTIES, HOST_PROPERTIES, INPUT_PROPERTIES, LOOK_PROPERTIES, PART_ALIGN } from '../src/tokens.js';
+import { BUTTON_LENGTH, CSS_PROPERTIES, HOST_PROPERTIES, INPUT_PROPERTIES, LOOK_PROPERTIES, PART_ALIGN } from '../src/tokens.js';
 import { GLYPH_CORNER_RADIUS, GLYPH_HEIGHT, GLYPH_OFFSET, GLYPH_SHAPE, GLYPH_THICKNESS, GLYPH_WIDTH } from '../src/parts/glyph.js';
 import { FILL_CLIP } from '../src/parts/fill.js';
 
@@ -31,7 +31,7 @@ const PART_INPUT = new Set<string>([...names(INPUT_PROPERTIES), GLYPH_WIDTH, GLY
 const SHAPE = new Set<string>([...names(CORE_SCHEMA), '--elevation-depth', '--elevation-color']);
 // What the host sets: the tokens of the bar, its timings and its card (not the inputs of a part).
 const HOST_TOKEN = new Set<string>(
-    [...names(HOST_PROPERTIES), ...names(CSS_PROPERTIES), ...names(LOOK_PROPERTIES)].filter((name) => !PART_INPUT.has(name)),
+    [...names(HOST_PROPERTIES), ...names(CSS_PROPERTIES), ...names(LOOK_PROPERTIES), BUTTON_LENGTH].filter((name) => !PART_INPUT.has(name)),
 );
 // The real CSS of a card's text, box and motion, on ::part(card), and the geometry of the track, on ::part(track-vertical)
 // and ::part(track-horizontal).

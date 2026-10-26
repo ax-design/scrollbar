@@ -14,16 +14,23 @@ const built = await Bun.build({
     entrypoints: [join(dir, 'page.html')],
     outdir: dist,
     conditions: ['source'],
-    plugins: !useSibling ? [] : [
+    plugins: [
+        // The Luna kit imports the package by name: the sources of this checkout.
         {
-            name: 'ax-acrylic',
+            name: 'ax-scrollbar',
             setup(b) {
-                b.onResolve({ filter: /^@ax-design\/acrylic$/ }, () => ({ path: sibling }));
-                for (const name of ['surface', 'shape', 'typed-om']) {
-                    b.onResolve({ filter: new RegExp(`^@ax-design/${name}$`) }, (args) => (args.importer.includes('/acrylic/') ? { path: join(dir, `../../${name}/src/index.ts`) } : undefined));
-                }
+                b.onResolve({ filter: /^@ax-design\/scrollbar$/ }, () => ({ path: join(dir, '../src/index.ts') }));
             },
         },
+        ...(!useSibling ? [] : [{
+            name: 'ax-acrylic',
+            setup(b: any) {
+                b.onResolve({ filter: /^@ax-design\/acrylic$/ }, () => ({ path: sibling }));
+                for (const name of ['surface', 'shape', 'typed-om']) {
+                    b.onResolve({ filter: new RegExp(`^@ax-design/${name}$`) }, (args: { importer: string }) => (args.importer.includes('/acrylic/') ? { path: join(dir, `../../${name}/src/index.ts`) } : undefined));
+                }
+            },
+        }]),
     ],
 });
 if (!built.success) throw new Error(built.logs.join('\n'));
@@ -1240,7 +1247,8 @@ const checks: Check[] = [
                 return {
                     seen: thumb.seen,
                     state: thumb.partState,
-                    styleElements: root.querySelectorAll('style').length,
+                    // Not the change detector that typed-om puts in the root to watch the host tokens.
+                    styleElements: Array.from(root.querySelectorAll('style')).filter((style) => !(style.textContent || '').includes('ax-typed-om')).length,
                     offset: getComputedStyle(thumb).outlineOffset,
                 };
             });
@@ -2402,6 +2410,87 @@ const checks: Check[] = [
                 near(m.button.width, 14, 0.01, 'the button is as wide as the bar inside its padding');
             } finally {
                 await t.call('plainRemove', 'lay');
+            }
+        },
+    },
+    {
+        name: 'thickness token, live: the default look follows --ax-scrollbar-thickness (17 -> 24 -> 8 -> 17) with no refresh',
+        run: async (t) => {
+            const content = '<h2 style="margin: 0; height: 1200px">One</h2><h2 style="margin: 0; height: 1200px">Two</h2><h2 style="margin: 0; height: 1200px">Three</h2><div style="width: 6000px; height: 1px"></div>';
+            await t.call('plainMake', 'live', '', { hide: '', vertical: 'always', horizontal: 'always', 'marker-selector': 'h2' }, content);
+            try {
+                await t.frames(4);
+                const glyph = async (name: string) => {
+                    const points = (await t.call<string>('inner', 'live', name, '.layer-scrollbar-glyph polygon', 'points')).split(' ').map((p) => p.split(',').map(Number));
+                    const xs = points.map((p) => p[0]);
+                    const ys = points.map((p) => p[1]);
+                    return { left: Math.min(...xs), right: Math.max(...xs), top: Math.min(...ys), bottom: Math.max(...ys) };
+                };
+                const check = async (th: number) => {
+                    const k = th / 17;
+                    await t.frames(6);
+                    await t.settle();
+                    const where = `at ${th}px: `;
+                    const bar = await t.box('live', 'scrollbar-vertical');
+                    near(bar.width, th, 0.01, where + 'vertical bar width');
+                    near((await t.box('live', 'scrollbar-horizontal')).height, th, 0.01, where + 'horizontal bar height');
+                    const thumb = await t.box('live', 'thumb-vertical');
+                    near(thumb.width, th, 0.02, where + 'vertical thumb width fills the bar');
+                    near((await t.box('live', 'thumb-horizontal')).height, th, 0.02, where + 'horizontal thumb height fills the bar');
+                    for (const name of ['button-start-vertical', 'button-end-vertical']) {
+                        const b = await t.box('live', name);
+                        near(b.width, th, 0.02, where + `${name} width`);
+                        near(b.height, 33 * k, 0.02, where + `${name} length`);
+                    }
+                    near((await t.box('live', 'button-end-horizontal')).width, 33 * k, 0.02, where + 'horizontal button length');
+                    const g = await glyph('button-end-vertical');
+                    near(g.right - g.left, 10.944 * k, 0.01, where + 'glyph width');
+                    near(g.bottom - g.top, 9.673 * k, 0.01, where + 'glyph height');
+                    near((g.left + g.right) / 2, th / 2, 0.01, where + 'glyph centred across');
+                    // The end button points down: its base is 7px (scaled) from the end button's top edge.
+                    near(g.top, 7 * k, 0.01, where + 'glyph offset from the track end of the button');
+                    const marker = await t.box('live', 'marker-vertical');
+                    near(marker.height, 2 * k, 0.02, where + 'marker thickness along the bar');
+                    return { marker };
+                };
+                await check(17);
+                for (const th of [24, 8, 17]) {
+                    await t.call('setToken', 'live', '--ax-scrollbar-thickness', `${th}px`);
+                    const { marker } = await check(th);
+                    // A marker is 9px for a 17px bar, 13px when it is the current one.
+                    expect(Math.abs(marker.width - (9 * th) / 17) < 0.05 || Math.abs(marker.width - (13 * th) / 17) < 0.05, `at ${th}px: marker width is ${round(marker.width)}`);
+                }
+                // The hovered marker is as wide as the bar.
+                await t.call('setToken', 'live', '--ax-scrollbar-thickness', '24px');
+                await t.frames(6);
+                const c = centre(await t.box('live', 'marker-vertical'));
+                await t.page.mouse.move(c.x, c.y);
+                await t.sleep(300);
+                near((await t.box('live', 'marker-vertical')).width, 24, 0.05, 'the hovered marker is as wide as a 24px bar');
+                await t.park();
+            } finally {
+                await t.call('plainRemove', 'live');
+                await t.park();
+            }
+        },
+    },
+    {
+        name: 'Luna kit (@ax-design/scrollbar/kits/luna): the parts of the kit draw with the scheme, and the schemes are adopted once',
+        run: async (t) => {
+            const schemes = await t.call<string>('lunaKit');
+            for (const name of ['blue', 'olive', 'silver', 'purple', 'orange', 'pink', 'gold']) expect(schemes.includes(`.luna-${name}`), `no scheme class luna-${name}`);
+            const [before, once, twice] = await t.call<number[]>('adoptLuna');
+            expect(once === before + 1 && twice === once, `adoptLunaSchemes adds one sheet and only one: ${before}, ${once}, ${twice}`);
+            await t.call('plainMake', 'luna', schemes, { kit: 'luna', class: 'luna-blue', vertical: 'always', horizontal: 'always' }, '<div style="width: 3000px; height: 3000px"></div>');
+            try {
+                await t.frames(6);
+                near((await t.box('luna', 'scrollbar-vertical')).width, 17, 0.01, 'the Luna bar is 17px');
+                expect((await t.call<string>('tagOf', 'luna', 'thumb-vertical')) === 'AX-SCROLLBAR-LUNA-THUMB', 'the thumb is the kit\'s class');
+                near((await t.box('luna', 'thumb-vertical')).width, 17, 0.01, 'the Luna thumb fills the bar');
+                const light = await t.call<string | null>('partAttr', 'luna', 'thumb-vertical', 'light');
+                expect(light === 'top-left', `the blue scheme is lit from the top left: ${light}`);
+            } finally {
+                await t.call('plainRemove', 'luna');
             }
         },
     },

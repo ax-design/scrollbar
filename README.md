@@ -87,7 +87,7 @@ Place one `<ax-scrollbar>` anywhere in the page:
 
 ### The default look
 
-Without a kit the parts draw Windows 8 (Modern UI), with the numbers of the Windows 8.1 XAML ScrollBar, ScrollViewer and ToolTip templates: a 17px bar that fades in over 250ms and out over 167ms, a square thumb, 33px buttons with a chevron, a pale track, flat ticks for markers, a square card without a shadow, and a thumb-only panning indicator for touch. These numbers are the initial values of the host tokens and the rules of the default theme.
+Without a kit the parts draw Windows 8 (Modern UI), with the numbers of the Windows 8.1 XAML ScrollBar, ScrollViewer and ToolTip templates: a 17px bar that fades in over 250ms and out over 167ms, a square thumb, 33px buttons with a chevron, a pale track, flat ticks for markers, a square card without a shadow, and a thumb-only panning indicator for touch. These numbers are the initial values of the host tokens and the rules of the default theme. They are the numbers of a 17px bar: the thumb and the hovered marker fill the bar, and the buttons, the arrows and the markers are those numbers scaled by `--ax-scrollbar-thickness` / 17px, so a thicker or thinner bar is the same drawing, larger or smaller.
 
 ### Styling is per part
 
@@ -218,6 +218,40 @@ What a part class can use:
 * `look(state, values)` and `static extraSchema` for a look that animates toward the inputs of its state.
 * `render(markers, content)` on the card.
 
+### Windows XP kit
+
+`@ax-design/scrollbar/kits/luna` is the Windows XP (Luna) scrollbar as a kit: raised thumb and arrow buttons with the grip lines, an etched track, XP info tips, no fades. It needs the elements registered, the kit defined and a colour scheme.
+
+```ts
+import { register } from '@ax-design/scrollbar';
+import { adoptLunaSchemes, defineLunaKit } from '@ax-design/scrollbar/kits/luna';
+
+register();
+defineLunaKit(); // defines the kit "luna"
+adoptLunaSchemes(); // adds the scheme classes to the document
+```
+
+```html
+<div class="luna-blue">
+  <ax-scroll-view kit="luna" style="height: 420px">...</ax-scroll-view>
+</div>
+```
+
+The schemes are the classes `luna-blue`, `luna-olive`, `luna-silver`, `luna-purple`, `luna-orange`, `luna-pink` and `luna-gold`, set on the scroll view or any ancestor (custom properties inherit into the parts). They are the string `lunaSchemes`, which `adoptLunaSchemes(root = document)` adopts once into a document or a shadow root; to link a file instead, write the string out and link it. Blue, Olive Green and Silver are the schemes of Windows XP.
+
+A scheme is a class of custom properties, so a custom scheme is a class that sets them, nothing else. The tones are colours: `--luna-accent`, `-accent-light`, `-accent-deep` (thumb, buttons), `--luna-glyph` (arrows, grip), `--luna-face` (track, corner) and `--luna-disabled`. The numbers are contrast, 0 to 1: `--luna-highlight`, `--luna-shade`, `--luna-gloss`, `--luna-depth`, `--luna-hot`, `--luna-press`, `--luna-etch` (and `--luna-relief`, which only the XP window of the demo reads). `--luna-light` (`top-left` or `top`) says where the light comes from, and `--luna-diagonal` and `--luna-glint` (0 or 1) switch two details of the arrow buttons. Every colour of the parts is a tone with white and black laid over it by those numbers, so a new scheme needs its tones and the numbers of the scheme it resembles; copy a class of `lunaSchemes` and change them. The sheet's header lists every property and the roles it reaches.
+
+```css
+.luna-moss {
+  --luna-light: top-left; --luna-diagonal: 1; --luna-glint: 0;
+  --luna-face: #e4e6d4; --luna-disabled: #f0f0e6;
+  --luna-highlight: 1; --luna-shade: 0.72; --luna-gloss: 0.182; --luna-depth: 0.196; --luna-hot: 0.624; --luna-press: 0.675; --luna-etch: 0; --luna-relief: 1;
+  --luna-accent: #a9c98b; --luna-accent-light: #d3e6bf; --luna-accent-deep: #4a8a1f; --luna-glyph: #3f5230;
+}
+```
+
+The kit is also the worked example of writing a kit. Each of its parts extends the contract class of its kind (`AxScrollbarThumb`, `AxScrollbarButton`, ...) and brings the rules of its kind as its own shadow CSS (`static styles`, written on `:host` and its `::before` and `::after`); nothing is drawn from outside and none of the default look has to be switched off. Behaviour is the only code: the raised parts reflect `--luna-light` as the attribute `light`, because a selector can switch geometry on an attribute and not on the value of a property. The XP window around the scroll view in the demo is page CSS and not part of the kit.
+
 ### Touch
 
 Without `touch-input` (the default) the touch indicator is a panning indicator: the bars take no touch input and the page scrolls under a finger as usual. With `touch-input`, a finger that comes down on a bar or in its hot zone belongs to the bar and decides after 5px: steeply along the bar it drags (relative to where it is), across it nothing more happens. A quick tap glides to the tapped place or activates the marker under it. The hovered marker and its card stay for `--ax-scrollbar-touch-idle-delay` after the finger lifts.
@@ -264,14 +298,14 @@ Written by the component, for you to select on (`ax-scroll-view[indicator-state=
 
 ### Host tokens
 
-Custom properties set on the element or any ancestor (they inherit). The behaviour tokens are read on each layout pass and on `refresh()`. Times are time constants unless noted: after one the motion has covered about 63% of the distance; `0s` is immediate.
+Custom properties set on the element or any ancestor (they inherit). The tokens are read on each layout pass and on `refresh()`; a change of one, from a style attribute, a rule or an animation, applies on the next frame without a call. Times are time constants unless noted: after one the motion has covered about 63% of the distance; `0s` is immediate.
 
 | Token | Default | Meaning |
 |-------|---------|---------|
-| `--ax-scrollbar-thickness` | `17px` | Thickness of a bar. |
+| `--ax-scrollbar-thickness` | `17px` | Thickness of a bar. The default look is sized from it: thumb and hovered marker fill the bar, the rest scales with `thickness / 17px`. |
 | `--ax-scrollbar-padding` | `0px` | Space between the bar's edges and its buttons and track. |
 | `--ax-scrollbar-thumb-min-length` | `48px` | Shortest thumb (`17px` while the touch indicator shows). |
-| `--ax-scrollbar-button-length` | `33px` | Button length along the axis; `auto` is a square. |
+| `--ax-scrollbar-button-length` | `33/17` of the thickness (`33px`) | Button length along the axis; `auto` is a square. Not registered: unset, it is the proportion. |
 | `--ax-scrollbar-hotzone` | `0px` | Depth of the hot zone from the bar's outer edge inward; percentages are of the thickness. Gives the bar the `near` state. |
 | `--ax-scrollbar-line` | `40px` | Scroll of a button press. A track page is the view minus one line. |
 | `--ax-scrollbar-idle-delay` | `3s` | How long the mouse indicator lingers. |
@@ -381,6 +415,7 @@ A marker object has `id`, `label`, `axis` (`vertical` by default), `position` (p
 | `AxScrollbarThumb`, `AxScrollbarButton`, `AxScrollbarTrack`, `AxScrollbarTrackPiece`, `AxScrollbarCorner`, `AxScrollbarMarker`, `AxScrollbarCard` | Contract classes: draw nothing. |
 | `AxScrollbarDefaultThumb`, `AxScrollbarDefaultButton`, `AxScrollbarDefaultTrack`, `AxScrollbarDefaultTrackPiece`, `AxScrollbarDefaultCorner`, `AxScrollbarDefaultMarker`, `AxScrollbarDefaultCard` | Default classes: the Windows 8 look. |
 | `isPartClass(cls, kind)` | Whether a class is a part class of that kind. |
+| `@ax-design/scrollbar/kits/luna`: `defineLunaKit()`, `lunaSchemes`, `adoptLunaSchemes(root?)` | The Windows XP kit and its colour schemes. See [Windows XP kit](#windows-xp-kit). |
 | types `PartClass`, `PartKind`, `PartState`, `Look`, `ScrollMarker`, `Axis`, `Placement` | `PartKind` is `'thumb' \| 'button' \| 'track' \| 'track-piece' \| 'corner' \| 'marker' \| 'card'`. |
 
 ## Changelog

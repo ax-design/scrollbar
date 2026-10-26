@@ -22,11 +22,12 @@ const STRUCTURE = `
 .frame.rtl .bar.v { right: auto; left: 0; }
 .bar.v { width: var(--ax-scrollbar-thickness); padding: var(--ax-scrollbar-padding); }
 .bar.h { height: var(--ax-scrollbar-thickness); padding: var(--ax-scrollbar-padding); }
-/* A button length of auto is a square: the height follows the width the bar gives it (with
-   aspect-ratio; older browsers need a length). */
+/* The button length is 33/17 of the thickness unless the token is set (the Windows 8 proportion). A
+   length of auto is a square: the length follows the width the bar gives it (with aspect-ratio;
+   older browsers need a length). */
 .button { flex: none; box-sizing: border-box; position: relative; }
-.bar.v > .button { height: var(--ax-scrollbar-button-length); aspect-ratio: 1; }
-.bar.h > .button { width: var(--ax-scrollbar-button-length); aspect-ratio: 1; }
+.bar.v > .button { height: var(--ax-scrollbar-button-length, calc(var(--ax-scrollbar-thickness) * 33 / 17)); aspect-ratio: 1; }
+.bar.h > .button { width: var(--ax-scrollbar-button-length, calc(var(--ax-scrollbar-thickness) * 33 / 17)); aspect-ratio: 1; }
 .area { position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; contain: layout; }
 .track, .clip, .piece, .thumb, .markers { position: absolute; box-sizing: border-box; }
 .track, .clip, .piece, .markers { left: 0; top: 0; right: 0; bottom: 0; }

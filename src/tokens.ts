@@ -27,9 +27,17 @@ export const CONTRACT_DELAY = '--ax-scrollbar-contract-delay';
 // How far from a marker's centre the pointer still reaches it, and the gap between a marker and its card.
 export const MARKER_REACH = '--ax-scrollbar-marker-reach';
 export const CARD_GAP = '--ax-scrollbar-card-gap';
+export const THICKNESS = '--ax-scrollbar-thickness';
+export const PADDING = '--ax-scrollbar-padding';
+export const THUMB_MIN_LENGTH = '--ax-scrollbar-thumb-min-length';
 
-// Read by the controller on every layout pass and on refresh().
+// Read by the controller on every layout pass and on refresh(), and watched: a change of any of
+// them, from a style attribute, a rule or an animation, is applied on the next frame. The default
+// parts size themselves from the thickness and the padding (see parts/default-css.ts).
 export const HOST_PROPERTIES: PropertySpec[] = [
+    length(THICKNESS, '17px'),
+    length(PADDING, '0px'),
+    length(THUMB_MIN_LENGTH, '48px'),
     time(SCROLL_SMOOTHING, `${SMOOTH_TAU}ms`),
     time(THUMB_SMOOTHING, `${FOLLOW_TAU}ms`),
     time(IDLE_DELAY, '3s'),
@@ -99,16 +107,12 @@ export const LOOK_PROPERTIES: PropertySpec[] = [
     ...INPUT_PROPERTIES,
 ];
 
-const lengthOrAuto = (name: string): PropertySpec => ({ name, syntax: { type: 'length', keywords: ['auto'] }, initial: 'auto', inherits: true, register: true });
+// The button length: not registered, so that unset it is 33/17 of the thickness (see style.ts); auto is a square.
+export const BUTTON_LENGTH = '--ax-scrollbar-button-length';
 
 // Used by the CSS of the scrollbar and of the default parts only (var()); registered so they are typed and inherit the same
 // way as the others.
 export const CSS_PROPERTIES: PropertySpec[] = [
-    length('--ax-scrollbar-thickness', '17px'),
-    length('--ax-scrollbar-padding', '0px'),
-    length('--ax-scrollbar-thumb-min-length', '48px'),
-    // auto: a square button.
-    { ...lengthOrAuto('--ax-scrollbar-button-length'), initial: '33px' },
     time('--ax-scrollbar-card-slide-duration', '367ms'),
     length('--ax-scrollbar-card-slide-distance', '12px'),
     // Where the thumb sits across the bar, set on ::part(thumb): 0 at the inner edge of the bar's padding, 1 at the outer edge.
@@ -157,6 +161,15 @@ export class HostTokens {
 
     constructor(host: HTMLElement, root: ShadowRoot) {
         this.binding = new StyleBinding(schema(), host, root);
+    }
+
+    // `onChange` runs after a change of any host token (and once after the first observation).
+    observe(onChange: () => void): void {
+        this.binding.observe(onChange);
+    }
+
+    unobserve(): void {
+        this.binding.unobserve();
     }
 
     read(): void {

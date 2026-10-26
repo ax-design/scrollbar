@@ -9,10 +9,11 @@ const initial = (name: string): string | undefined => [...HOST_PROPERTIES, ...LO
 // The default look is Windows 8: the numbers of the Windows 8.1 XAML templates are the initial values of the host tokens
 // and the rules of the default parts.
 describe('default look (Windows 8)', () => {
-    test('the bar: 17px, no padding, 33px buttons, 48px thumbs, no hot zone', () => {
+    test('the bar: 17px, no padding, buttons 33/17 of the thickness, 48px thumbs, no hot zone', () => {
         expect(initial('thickness')).toBe('17px');
         expect(initial('padding')).toBe('0px');
-        expect(initial('button-length')).toBe('33px');
+        expect(initial('button-length')).toBeUndefined();
+        expect(SHADOW_STYLE).toContain('height: var(--ax-scrollbar-button-length, calc(var(--ax-scrollbar-thickness) * 33 / 17))');
         expect(initial('thumb-min-length')).toBe('48px');
         expect(initial('hotzone')).toBe('0px');
     });
@@ -35,7 +36,7 @@ describe('default look (Windows 8)', () => {
 
     test('the parts: square, a 1px border, the fill inside it, the glyph geometry of the XAML arrow', () => {
         expect(THUMB_CSS).toContain('--ax-scrollbar-part-fill-clip: padding-box');
-        expect(BUTTON_CSS).toContain('--ax-scrollbar-glyph-width: 10.944px');
+        expect(BUTTON_CSS).toContain('--ax-scrollbar-glyph-width: calc(var(--ax-scrollbar-thickness) * 10.944 / 17)');
         expect(THUMB_CSS).toContain('--ax-scrollbar-part-color: #cdcdcd');
         expect(CARD_CSS).toContain('--ax-border-width: 2px');
         expect(CARD_CSS).toContain('--elevation-depth: 0');

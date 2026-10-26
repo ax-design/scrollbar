@@ -1,4 +1,5 @@
-/* Windows XP (Luna) kit, the track piece: nothing at rest (the track shows). Page repeat held toward
+// Plain CSS, as a string so that the published package needs no bundler plugin for it.
+export default `/* Windows XP (Luna) kit, the track piece: nothing at rest (the track shows). Page repeat held toward
    a piece: that piece is pressed, drawn with the track's slots of the pressed paint. */
 
 :host([axis="vertical"]) {
@@ -23,3 +24,4 @@
         var(--t-edge-a) var(--t-e-k), var(--t-edge-a) var(--t-e), var(--t-edge-a) var(--t-e-b),
         var(--t-edge-b) var(--t-e-k), var(--t-edge-b) var(--t-e), var(--t-edge-b) var(--t-e-b);
 }
+`;

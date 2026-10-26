@@ -1,6 +1,6 @@
 /* Window chrome of the demo: a Luna window around the XP stage. Not a part of the scrollbar, so it
-   is plain page CSS. Its colours are derived as the scrollbar's are (kits/luna.css): every shade is
-   a tone of the scheme (kits/luna-schemes.css, a class on an ancestor) with translucent white and
+   is plain page CSS. Its colours are derived as the scrollbar's are (the Luna kit, src/kits/luna): every shade is
+   a tone of the scheme (src/kits/luna/schemes.ts, a class on an ancestor) with translucent white and
    black over it, the opacities being contrast numbers of the scheme times constants of this
    construction. A paint is three layers with the same geometry: black over white over its flat
    tone. The constants were fitted once to the theme's own pieces.
@@ -29,13 +29,13 @@
 }
 /* Caption buttons: 21 x 21, 5px from the top. The INI offsets (-25, -49, -73) are the left edges
    measured from the right edge of the caption, so the right inset is 4px, 28px and 52px, with 3px
-   between them. The glyph box (position, size) is with the look, in luna.css. */
+   between them. The glyph box (position, size) is with the look, in the Luna kit. */
 .xp-buttons { position: absolute; inset: 0; pointer-events: none; }
 .xp-min, .xp-max, .xp-close { position: absolute; top: 5px; display: block; width: 21px; height: 21px; pointer-events: auto; }
 .xp-close { right: 4px; }
 .xp-max { right: 28px; }
 .xp-min { right: 52px; }
-/* Frame: 5px left, right and bottom, painted in luna.css: 4px of frame and the client area's 1px
+/* Frame: 5px left, right and bottom, painted in the Luna kit: 4px of frame and the client area's 1px
    border. */
 .xp-frame { flex: 1 1 auto; min-height: 0; padding: 0 4px 4px; }
 .xp-client { box-sizing: border-box; }

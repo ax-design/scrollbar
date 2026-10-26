@@ -1,4 +1,5 @@
-/* Windows XP (Luna) kit, the thumb: its geometry per axis, the colours of its states and the highlight
+// Plain CSS, as a string so that the published package needs no bundler plugin for it.
+export default `/* Windows XP (Luna) kit, the thumb: its geometry per axis, the colours of its states and the highlight
    and grip, on top of the raised box (luna-raised.css) and the shades (luna-shades.css). */
 
 /* Vertical thumb: the ring leaves the track's edge line free on the left; the side shadow is on
@@ -225,3 +226,4 @@
 :host { --ax-scrollbar-thumb-min-length: 8px; }
 /* Disabled: nothing to scroll, so no thumb. */
 :host([disabled]) { display: none; }
+`;

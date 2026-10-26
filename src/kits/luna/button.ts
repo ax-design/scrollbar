@@ -1,4 +1,5 @@
-/* Windows XP (Luna) kit, the arrow buttons: geometry, the colours of their states and the arrow glyphs,
+// Plain CSS, as a string so that the published package needs no bundler plugin for it.
+export default `/* Windows XP (Luna) kit, the arrow buttons: geometry, the colours of their states and the arrow glyphs,
    on top of the raised box (luna-raised.css) and the shades (luna-shades.css). */
 
 /* Around its ring a button shows the track's edge colour in every state, also on a disabled bar. */
@@ -274,3 +275,4 @@
 }
 /* Buttons: 17 x 17, the bar's button length, set on the button. */
 :host { --ax-scrollbar-button-length: 17px; }
+`;

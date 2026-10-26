@@ -1,5 +1,5 @@
-/* The Luna colour schemes, for the luna kit (kits/luna.css) and the demo's XP window
-   (xp-window.css). A scheme is a class on an ancestor: custom properties inherit into the
+// Plain CSS, as a string so that the published package needs no bundler plugin for it.
+export default `/* The Luna colour schemes, for the Luna kit and the demo's XP window (xp-window.css). A scheme is a class on an ancestor: custom properties inherit into the
    scrollbar's shadow root, so one class colours the bars and the window chrome alike.
 
    A scheme is tones (designed colours), numbers (contrast) and three geometry flags. Every colour of
@@ -9,7 +9,7 @@
    + var(--luna-press) * k  to its black term. The tone of each role is the same in every scheme
    (the construction names it in a comment).
 
-   Tones. `-light` is the family's lit / hot tone, `-deep` its shadow / pressed / outline tone.
+   Tones. \`-light\` is the family's lit / hot tone, \`-deep\` its shadow / pressed / outline tone.
    | family  | tones                                                          | used by                                         |
    |---------|----------------------------------------------------------------|-------------------------------------------------|
    | accent  | --luna-accent, --luna-accent-light, --luna-accent-deep         | thumb, arrow buttons (all states but disabled)  |
@@ -19,7 +19,7 @@
    | neutral | --luna-face, --luna-text (theme INI, not fitted)               | track, corner, caption text                     |
    | neutral | --luna-disabled (one value, shared by the three reference schemes) | disabled parts                                  |
 
-   Contrast numbers (B8.1: each is 1 in the reference scheme where its effect is strongest, 0..1 elsewhere;
+   Contrast numbers (each is 1 in the reference scheme where its effect is strongest, 0..1 elsewhere;
    the constants k absorb the scale). Every role has a white AND a black term.
    | number             | meaning                                          | roles (white term / black term)                           |
    |--------------------|--------------------------------------------------|-----------------------------------------------------------|
@@ -32,7 +32,7 @@
    | --luna-relief      | the window frame's bevel                         | frame-*, caption-left, -right, -bevel-*, -corner*, -top, -outline*, -light-a, -light-b (white = lit side, black = shaded side) |
    | --luna-etch        | the etched outline of caption buttons, the ring's darkness | cb-*etch, close-*etch (both), *-ring (black), grip-* (black) |
 
-   `-light` and `-deep` stay within 25 degrees of OKLCH hue of their base and are lighter / darker than it.
+   \`-light\` and \`-deep\` stay within 25 degrees of OKLCH hue of their base and are lighter / darker than it.
 
    Geometry flags (not colours):
      --luna-light       top-left | top: where the light comes from
@@ -185,3 +185,4 @@
     --luna-close-light: #ffeadd;
     --luna-close-deep: #fd0000;
 }
+`;

@@ -1,9 +1,10 @@
 // The Windows XP (Luna) scrollbar as a kit: part classes that replace the default parts by
 // dependency injection. Each class extends the contract class of its kind and brings its own look,
-// the rules of its kind in a shadow style of its own (luna-*.css, `:host` and its pseudo-elements);
-// nothing is drawn from outside and nothing of the default look is switched off. Pick it with
-// kit="luna" and a scheme class (luna-blue, luna-olive, luna-silver, luna-purple, luna-gold,
-// luna-orange, luna-pink) on an ancestor.
+// the rules of its kind in a shadow style of its own (`:host` and its pseudo-elements); nothing is
+// drawn from outside and nothing of the default look is switched off. Define it with
+// `defineLunaKit()`, pick it with kit="luna", and put a scheme class (luna-blue, luna-olive,
+// luna-silver, luna-purple, luna-orange, luna-pink, luna-gold) on an ancestor: the schemes are the
+// stylesheet `lunaSchemes`, which `adoptLunaSchemes()` adds to a document or a shadow root.
 import {
     AxScrollbarButton,
     AxScrollbarCard,
@@ -15,15 +16,37 @@ import {
     defineScrollbarKit,
 } from '@ax-design/scrollbar';
 import type { Quality, Values } from '@ax-design/surface';
-import button from './luna-button.css' with { type: 'text' };
-import card from './luna-card.css' with { type: 'text' };
-import corner from './luna-corner.css' with { type: 'text' };
-import marker from './luna-marker.css' with { type: 'text' };
-import piece from './luna-piece.css' with { type: 'text' };
-import raised from './luna-raised.css' with { type: 'text' };
-import shades from './luna-shades.css' with { type: 'text' };
-import thumb from './luna-thumb.css' with { type: 'text' };
-import track from './luna-track.css' with { type: 'text' };
+import button from './button.js';
+import card from './card.js';
+import corner from './corner.js';
+import marker from './marker.js';
+import piece from './piece.js';
+import raised from './raised.js';
+import schemes from './schemes.js';
+import shades from './shades.js';
+import thumb from './thumb.js';
+import track from './track.js';
+
+// The colour schemes: a class per scheme, setting the tones and numbers the parts read (see the
+// header of the stylesheet). Put the class on an ancestor of the scroll view.
+export const lunaSchemes: string = schemes;
+
+const adopted = new WeakSet<Document | ShadowRoot>();
+
+// Adds `lunaSchemes` to a document or to the shadow root that holds the scroll views; once per root.
+export function adoptLunaSchemes(root: Document | ShadowRoot = document): void {
+    if (adopted.has(root)) return;
+    adopted.add(root);
+    if ('adoptedStyleSheets' in root && typeof CSSStyleSheet !== 'undefined' && 'replaceSync' in CSSStyleSheet.prototype) {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(lunaSchemes);
+        root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
+        return;
+    }
+    const style = document.createElement('style');
+    style.textContent = lunaSchemes;
+    (root instanceof Document ? root.head : root).appendChild(style);
+}
 
 // The direction of the light is part of a colour scheme's design, not of its colours: Blue, Olive
 // Green and the schemes derived from Blue are lit from the top left (a drop shadow on the right, a

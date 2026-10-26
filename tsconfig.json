@@ -9,7 +9,7 @@
         "allowImportingTsExtensions": true,
         "types": ["bun"],
         "skipLibCheck": true,
-        "paths": { "@ax-design/scrollbar": ["./src/index.ts"], "@ax-design/acrylic": ["../acrylic/src/index.ts"] }
+        "paths": { "@ax-design/scrollbar": ["./src/index.ts"], "@ax-design/scrollbar/kits/luna": ["./src/kits/luna/index.ts"], "@ax-design/acrylic": ["../acrylic/src/index.ts"] }
     },
     "include": ["src", "demo"],
     "exclude": ["demo/dist"]

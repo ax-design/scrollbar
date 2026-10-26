@@ -1,4 +1,5 @@
-/* Windows XP (Luna) kit, the track: a 1px edge line on both long sides, and a shading that grows
+// Plain CSS, as a string so that the published package needs no bundler plugin for it.
+export default `/* Windows XP (Luna) kit, the track: a 1px edge line on both long sides, and a shading that grows
    lighter toward the far side. A paint is three layers: black over white over its base (see
    luna-shades.css): the slots --t-*, --t-*-k and --t-*-b are the white, the black and the base.
    The track piece (luna-piece.css) shares the slots. */
@@ -36,3 +37,4 @@
         var(--t-edge-a) var(--luna-track-disabled-edge-k), var(--t-edge-a) var(--luna-track-disabled-edge), var(--t-edge-a) var(--luna-track-disabled-edge-base),
         var(--t-edge-b) var(--luna-track-disabled-edge-k), var(--t-edge-b) var(--luna-track-disabled-edge), var(--t-edge-b) var(--luna-track-disabled-edge-base);
 }
+`;

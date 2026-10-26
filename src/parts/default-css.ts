@@ -5,8 +5,8 @@
 // -thickness, -opacity, -glyph-scale: see tokens.ts) and the Surface Shape properties. The part's
 // animator reads those as the target of its motion and writes the shown values
 // (--ax-scrollbar-shown-*, see animator.ts), which the rules below put on the fill, the opacity
-// and the size. The bar's own numbers (17px, no padding, 33px buttons, 48px thumbs, the fades,
-// the idle times) are the initial values of the host tokens.
+// and the size. The bar's own numbers (17px, no padding, buttons 33/17 of the thickness long, 48px thumbs,
+// the fades, the idle times) are the initial values of the host tokens.
 //
 // These rules are `:host` rules of the part's own shadow root, so a ::part() rule of the page
 // overrides them whatever its specificity (the outer context wins for normal declarations): it
@@ -15,6 +15,13 @@
 // wins): rest, [current, on-thumb], hover, pressed, then the touch indicator.
 //
 // Before the first frame of the animator, a part has the size of its input.
+// The Windows 8 numbers are those of a 17px bar; every size of the look is that number scaled by
+// the bar's thickness / 17px, so a bar of another thickness is the same drawing scaled. The
+// thickness is the host token, which inherits into the part's shadow root. `INNER` is the room
+// across the bar inside its padding: a thumb or a hovered marker fills it.
+const THICKNESS_TOKEN = 'var(--ax-scrollbar-thickness)';
+const INNER = `calc(${THICKNESS_TOKEN} - 2 * var(--ax-scrollbar-padding))`;
+const scaled = (px: number): string => `calc(${THICKNESS_TOKEN} * ${px} / 17)`;
 const SIZE = 'var(--ax-scrollbar-shown-size, var(--ax-scrollbar-part-size))';
 const THICKNESS = `var(--ax-scrollbar-shown-thickness, ${SIZE})`;
 const SLIDE = 'var(--ax-scrollbar-shown-slide, 0px)';
@@ -55,7 +62,7 @@ const SLIDE_RULES =
 // indicator: a 4px thumb in the middle of the column with a 1px border, all alike (it has no hover).
 export const THUMB_CSS =
     COMMON() +
-    rule('', `${SIZE_INPUT}: 17px; ${COLOR}: #cdcdcd; ${BORDER}: rgba(85, 85, 85, 0.231);`) +
+    rule('', `${SIZE_INPUT}: ${INNER}; ${COLOR}: #cdcdcd; ${BORDER}: rgba(85, 85, 85, 0.231);`) +
     rule('([hover])', `${COLOR}: #dadada; ${BORDER}: rgba(183, 183, 183, 0.42);`) +
     rule('([pressed])', `${COLOR}: rgba(0, 0, 0, 0.6); ${BORDER}: rgba(85, 85, 85, 0.929);`) +
     rule('([touch])', `${SIZE_INPUT}: 4px; ${COLOR}: #cdcdcd; ${BORDER}: rgba(154, 154, 154, 0.49);`) +
@@ -65,14 +72,14 @@ export const THUMB_CSS =
 
 // Buttons: the track colour at rest, the arrow black on a hovered button and white on a pressed
 // one. The arrow is a 10.944 x 9.673 chevron, arms 4.118 deep, 7px from the edge of the button
-// next to the track, centred across.
+// next to the track, centred across (the numbers of a 17px bar, scaled with the thickness).
 export const BUTTON_CSS =
     COMMON() +
     // Above the track and the pieces that slide.
     rule('', 'z-index: 1;') +
     rule(
         '',
-        `${COLOR}: rgba(213, 213, 213, 0.349); ${GLYPH}: rgba(0, 0, 0, 0.6); --ax-scrollbar-glyph-width: 10.944px; --ax-scrollbar-glyph-height: 9.673px; --ax-scrollbar-glyph-thickness: 4.118px; --ax-scrollbar-glyph-offset: 7px;`,
+        `${COLOR}: rgba(213, 213, 213, 0.349); ${GLYPH}: rgba(0, 0, 0, 0.6); --ax-scrollbar-glyph-width: ${scaled(10.944)}; --ax-scrollbar-glyph-height: ${scaled(9.673)}; --ax-scrollbar-glyph-thickness: ${scaled(4.118)}; --ax-scrollbar-glyph-offset: ${scaled(7)};`,
     ) +
     rule('([hover])', `${COLOR}: #dadada; ${GLYPH}: #000;`) +
     rule('([pressed])', `${COLOR}: rgba(0, 0, 0, 0.6); ${GLYPH}: #fff;`) +
@@ -92,17 +99,17 @@ export const PIECE_CSS = COMMON() + SLIDE_RULES;
 
 export const CORNER_CSS = COMMON() + rule('', `${COLOR}: rgba(213, 213, 213, 0.349);`);
 
-// Markers: flat ticks 9px across and 2px along the bar. They rest light, the current section is a
-// medium grey and 13px, the hovered one the darkest and 17px. On the thumb they turn white, also
+// Markers: flat ticks 9px across and 2px along the bar (for a 17px bar). They rest light, the current
+// section is a medium grey and 13px, the hovered one the darkest and as wide as the bar. On the thumb they turn white, also
 // when hovered or current (the size marks those). The marker's own opacity is a second channel
 // that multiplies the fade. The size is across the bar, the thickness along it (the part writes
 // the size for a thickness of auto: a dot). On touch they are 4px x 1px, all alike.
 export const MARKER_CSS =
     COMMON('calc(var(--ax-scrollbar-shown-opacity, 0) * var(--ax-scrollbar-shown-alpha, 1))') +
-    rule('', `${SIZE_INPUT}: 9px; ${THICKNESS_INPUT}: 2px; ${COLOR}: #9c9c9c;`) +
-    rule('([current])', `${SIZE_INPUT}: 13px; ${COLOR}: #666;`) +
+    rule('', `${SIZE_INPUT}: ${scaled(9)}; ${THICKNESS_INPUT}: ${scaled(2)}; ${COLOR}: #9c9c9c;`) +
+    rule('([current])', `${SIZE_INPUT}: ${scaled(13)}; ${COLOR}: #666;`) +
     rule('([on-thumb])', `${COLOR}: #fff;`) +
-    rule('([hover])', `${SIZE_INPUT}: 17px; ${COLOR}: #1a1a1a;`) +
+    rule('([hover])', `${SIZE_INPUT}: ${INNER}; ${COLOR}: #1a1a1a;`) +
     rule('([on-thumb][hover])', `${COLOR}: #fff;`) +
     rule('([axis][touch])', `${SIZE_INPUT}: 4px; ${THICKNESS_INPUT}: 1px; ${COLOR}: rgba(0, 0, 0, 0.4);`) +
     `${VERTICAL} { width: ${SIZE}; height: ${THICKNESS}; transform: translateX(${SLIDE}); }\n` +

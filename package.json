@@ -1,6 +1,6 @@
 {
     "name": "@ax-design/scrollbar",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Web components that replace the scrollbars of a container or of the page with ones you style with CSS, for Axiom Design System.",
     "main": "build/main.js",
     "module": "es/index.js",
@@ -48,6 +48,13 @@
             "import": "./es/index.js",
             "require": "./build/main.js",
             "default": "./es/index.js"
+        },
+        "./kits/luna": {
+            "types": "./es/kits/luna/index.d.ts",
+            "source": "./src/kits/luna/index.ts",
+            "import": "./es/kits/luna/index.js",
+            "require": "./build/kits/luna.js",
+            "default": "./es/kits/luna/index.js"
         },
         "./package.json": "./package.json"
     }

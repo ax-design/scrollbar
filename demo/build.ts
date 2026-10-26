@@ -4,7 +4,10 @@ import { existsSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const root = resolve(import.meta.dir, '../..');
-const sources: Record<string, string> = { '@ax-design/scrollbar': resolve(import.meta.dir, '../src/index.ts') };
+const sources: Record<string, string> = {
+    '@ax-design/scrollbar': resolve(import.meta.dir, '../src/index.ts'),
+    '@ax-design/scrollbar/kits/luna': resolve(import.meta.dir, '../src/kits/luna/index.ts'),
+};
 for (const name of ['surface', 'shape', 'typed-om', 'scroll', 'acrylic']) {
     const path = join(root, name, 'src/index.ts');
     if (existsSync(path)) sources[`@ax-design/${name}`] = path;

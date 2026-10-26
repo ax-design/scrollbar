@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { CSS_PROPERTIES, HOST_PROPERTIES, INPUT_PROPERTIES, LOOK_PROPERTIES } from '../src/tokens.js';
+import { BUTTON_LENGTH, CSS_PROPERTIES, HOST_PROPERTIES, INPUT_PROPERTIES, LOOK_PROPERTIES } from '../src/tokens.js';
 import { BUTTON_CSS, CARD_CSS, CORNER_CSS, MARKER_CSS, PIECE_CSS, THUMB_CSS, TRACK_CSS } from '../src/parts/default-css.js';
 import { SHADOW_STYLE } from '../src/style.js';
 
@@ -31,9 +31,10 @@ describe('look inputs (B11)', () => {
     test('the host keeps the tokens of the whole bar, card-gap and marker-reach among them as lengths', () => {
         const host = Object.fromEntries(HOST_PROPERTIES.map((spec) => [spec.name, spec]));
         for (const name of ['card-gap', 'marker-reach']) expect((host[`--ax-scrollbar-${name}`].syntax as { type: string }).type).toBe('length');
-        for (const name of ['thickness', 'padding', 'thumb-min-length', 'button-length']) {
+        for (const name of ['thickness', 'padding', 'thumb-min-length']) {
             expect(names([...HOST_PROPERTIES, ...CSS_PROPERTIES])).toContain(`--ax-scrollbar-${name}`);
         }
+        expect(BUTTON_LENGTH).toBe('--ax-scrollbar-button-length');
     });
 });
 

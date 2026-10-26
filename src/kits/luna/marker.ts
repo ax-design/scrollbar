@@ -1,4 +1,5 @@
-/* Windows XP (Luna) kit, the markers: etched ticks, orange when hovered. Each tick is a 1px
+// Plain CSS, as a string so that the published package needs no bundler plugin for it.
+export default `/* Windows XP (Luna) kit, the markers: etched ticks, orange when hovered. Each tick is a 1px
    border over a 1px background (a hard-stop gradient would be antialiased at the stop). */
 :host([axis="vertical"]) {
     box-sizing: border-box;
@@ -22,3 +23,4 @@
 :host([on-thumb]) { visibility: hidden; }
 :host([on-thumb][hover]) { visibility: visible; }
 :host([axis="horizontal"][hover]) { height: 13px; }
+`;

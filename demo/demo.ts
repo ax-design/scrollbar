@@ -1,11 +1,13 @@
 import { register } from '@ax-design/scrollbar';
 import { bindScroll } from '@ax-design/scroll';
 import { registerAcrylicLayer } from '@ax-design/acrylic';
-import { defineLunaKit } from './kits/luna.ts';
+import { adoptLunaSchemes, defineLunaKit } from '@ax-design/scrollbar/kits/luna';
 
 register();
-// The Luna kit is defined by name; the elements pick it with kit="luna".
+// The Luna kit is defined by name; the elements pick it with kit="luna". Its colour schemes are classes
+// (luna-blue ...) that the page adopts.
 defineLunaKit();
+adoptLunaSchemes();
 // The acrylic layer of Windows 11: the track names it among its layers (track-layers).
 registerAcrylicLayer();
 

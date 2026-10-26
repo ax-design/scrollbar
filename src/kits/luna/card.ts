@@ -1,4 +1,5 @@
-/* Windows XP (Luna) kit, the card: an info tip. Only the first one fades in; a swap and an exit are
+// Plain CSS, as a string so that the published package needs no bundler plugin for it.
+export default `/* Windows XP (Luna) kit, the card: an info tip. Only the first one fades in; a swap and an exit are
    immediate. */
 :host {
     padding: 2px 6px 3px;
@@ -14,3 +15,4 @@
 :host([part~="card-first"]) { transition: opacity 200ms linear; }
 :host([part~="card-swap"]) { transition: none; }
 :host([part~="card-exit"]) { opacity: 0; transition: none; }
+`;

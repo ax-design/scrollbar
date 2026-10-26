@@ -7,7 +7,6 @@
 <link rel="stylesheet" href="./minimal.css">
 <link rel="stylesheet" href="./win11.css">
 <link rel="stylesheet" href="./cyberpunk.css">
-<link rel="stylesheet" href="./kits/luna-schemes.css">
 <link rel="stylesheet" href="./xp-window.css">
 <style>
   * { box-sizing: border-box; }
@@ -208,7 +207,7 @@
   </section>
 
   <section class="stage stage-xp" aria-label="Windows XP stage">
-    <p class="caption">Windows XP: dependency injection. A kit (kits/luna.ts) replaces the parts with classes that carry their own look, for a window in the Luna look. Blue, Olive Green and Silver are the schemes of Windows XP; Purple is ours, the blue scheme turned to violet.</p>
+    <p class="caption">Windows XP: dependency injection. A kit (@ax-design/scrollbar/kits/luna) replaces the parts with classes that carry their own look, for a window in the Luna look. Blue, Olive Green and Silver are the schemes of Windows XP; Purple is ours, the blue scheme turned to violet.</p>
     <div class="xp-window">
       <div class="xp-caption"><span class="xp-title">Release notes</span><span class="xp-buttons"><span class="xp-min"></span><span class="xp-max"></span><span class="xp-close"></span></span></div>
       <div class="xp-frame">
@@ -316,7 +315,7 @@ river-yard    lowland        412    drums   2026-09-08 14:55     warehouse-d    
 
 <footer>
   <h2>Notes on this page</h2>
-  <p>Each stage is a scroll view, or a window with one, and its bars are drawn by the component. The stages show three ways to make a look. Windows 8 is the default look: nothing to write. Cyber Punk, Minimal and Windows 11 style the default parts with <code>::part()</code> rules (cyberpunk.css, minimal.css, win11.css) and tokens on the scroll view; Windows 11 also adds a layer by configuration: its track names the acrylic layer of <code>@ax-design/acrylic</code> among its layers (<code>track-layers</code> on the element). Windows XP is dependency injection: a kit (kits/luna.ts) that replaces the parts themselves, with classes that carry their own look.</p>
+  <p>Each stage is a scroll view, or a window with one, and its bars are drawn by the component. The stages show three ways to make a look. Windows 8 is the default look: nothing to write. Cyber Punk, Minimal and Windows 11 style the default parts with <code>::part()</code> rules (cyberpunk.css, minimal.css, win11.css) and tokens on the scroll view; Windows 11 also adds a layer by configuration: its track names the acrylic layer of <code>@ax-design/acrylic</code> among its layers (<code>track-layers</code> on the element). Windows XP is dependency injection: a kit (@ax-design/scrollbar/kits/luna) that replaces the parts themselves, with classes that carry their own look.</p>
   <p>The page scrollbar is a separate element. It is placed over the page, and the native scrollbar of the page is hidden while it is shown. The select in the header picks its look: Windows 8 (the default), Minimal, the Windows XP kit, Windows 11 in each of its variants or Cyber Punk.</p>
   <h2>Markers</h2>
   <p>Headings in the content become markers on the track. Hover one to see its card, or click it to scroll to that section. The stage on the left uses the second-level headings, and the window on the right uses the third-level ones.</p>

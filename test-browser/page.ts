@@ -1,12 +1,14 @@
 // Page side of the browser test. Registers the elements of page.html and exposes window.axTest:
 // small read and write helpers that run.ts calls through page.evaluate. Input comes from the driver.
 import * as scrollbar from '../src/index.js';
-import { register } from '../src/index.js';
+import { hasScrollbarKit, register } from '../src/index.js';
 // The Minimal look of the demo, to check what its rules make of the default parts.
 import minimalCss from '../demo/minimal.css' with { type: 'text' };
 import cyberpunkCss from '../demo/cyberpunk.css' with { type: 'text' };
 // The Windows 11 look of the demo, with the acrylic layer its track names.
 import win11Css from '../demo/win11.css' with { type: 'text' };
+// The Windows XP kit of the package.
+import { adoptLunaSchemes, defineLunaKit, lunaSchemes } from '../src/kits/luna/index.js';
 import { registerAcrylicLayer } from '@ax-design/acrylic';
 import { registerLayer } from '@ax-design/surface';
 
@@ -221,6 +223,11 @@ const axTest = {
         host.refresh();
     },
 
+    // A custom property on the host and nothing else: the element has to notice it by itself.
+    setToken(id: string, name: string, value: string): void {
+        (el(id) as Scroller).style.setProperty(name, value);
+    },
+
     // A style element of the document, by key (an empty css removes it), then a refresh of every
     // scroller: the parts read the ::part() rules of the page again.
     addStyle(key: string, css: string): void {
@@ -263,6 +270,21 @@ const axTest = {
         shadow.appendChild(view);
         document.body.appendChild(host);
         plains.set(id, { host, view });
+    },
+
+    // Defines the Luna kit (once) and returns the stylesheet of its colour schemes, as text.
+    lunaKit(): string {
+        if (!hasScrollbarKit('luna')) defineLunaKit();
+        return lunaSchemes;
+    },
+
+    // Adopts the colour schemes into the document; the number of adopted sheets before and after, twice.
+    adoptLuna(): number[] {
+        const before = document.adoptedStyleSheets.length;
+        adoptLunaSchemes();
+        const once = document.adoptedStyleSheets.length;
+        adoptLunaSchemes();
+        return [before, once, document.adoptedStyleSheets.length];
     },
 
     // The Minimal look of the demo, as text.

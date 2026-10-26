@@ -1,5 +1,6 @@
-/* Windows XP (Luna) kit, the raised box that thumbs and arrow buttons share, as the rules of a part's
-   `:host` and of its `::before` and `::after`. The two boxes are laid on the part itself, which stays
+// Plain CSS, as a string so that the published package needs no bundler plugin for it.
+export default `/* Windows XP (Luna) kit, the raised box that thumbs and arrow buttons share, as the rules of a part's
+   \`:host\` and of its \`::before\` and \`::after\`. The two boxes are laid on the part itself, which stays
    the whole 17px cell, the hit area.
    - ::before, the ring: a bordered box (white in Blue and Olive Green, grey in Silver), nearly
      square at the top and rounded at the bottom. Its drop shadows (outer box-shadows, so they lie
@@ -84,3 +85,4 @@
         linear-gradient(var(--k-edge-right), var(--k-edge-right)) 100% 1px / 1px calc(100% - 2px) no-repeat,
         linear-gradient(var(--k-edge-right-b), var(--k-edge-right-b)) 100% 1px / 1px calc(100% - 2px) no-repeat;
 }
+`;

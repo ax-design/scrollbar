@@ -46,4 +46,41 @@ return { ${fields.join(', ')} };
 });
 `
 );
-console.log('built es/, build/index.mjs, build/main.js');
+
+// The Luna kit (subpath @ax-design/scrollbar/kits/luna) as UMD for require(). It imports the package
+// by name instead of bundling it: the kit has to extend the classes of the instance the page uses.
+const kit = await Bun.build({
+    entrypoints: [join(root, 'es/kits/luna/index.js')],
+    format: 'esm',
+    target: 'browser',
+    external: ['@ax-design/scrollbar'],
+    minify,
+});
+if (!kit.success) throw new Error(kit.logs.join('\n'));
+const kitEsm = await kit.outputs[0].text();
+const head = /^\s*import\s*\{([^}]*)\}\s*from\s*["']@ax-design\/scrollbar["'];?/.exec(kitEsm);
+const kitTail = /export\s*\{([^}]*)\};?\s*$/.exec(kitEsm);
+if (!head || !kitTail) throw new Error('unexpected kit bundle format: no leading import or trailing export clause');
+// `a as b, c` of an import or export clause as [a, b] pairs (b = a when there is no `as`).
+const clause = (list: string): [string, string][] =>
+    list
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .map((part) => {
+            const [from, to] = part.split(/\s+as\s+/);
+            return [from, to || from];
+        });
+await Bun.write(
+    join(root, 'build/kits/luna.js'),
+    `(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('@ax-design/scrollbar'));
+  else root.AxScrollbarLuna = factory(root.AxScrollbar);
+})(typeof self !== 'undefined' ? self : this, function (scrollbar) {
+var { ${clause(head[1]).map(([name, local]) => `${name}: ${local}`).join(', ')} } = scrollbar;
+${kitEsm.slice(head[0].length, kitTail.index)}
+return { ${clause(kitTail[1]).map(([local, exported]) => `${exported}: ${local}`).join(', ')} };
+});
+`
+);
+console.log('built es/, build/index.mjs, build/main.js, build/kits/luna.js');

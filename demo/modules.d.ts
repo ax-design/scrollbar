@@ -1,4 +1,4 @@
-// The demo imports its kit's style sheet as text.
+// The demo imports its looks' style sheets as text.
 declare module '*.css' {
     const text: string;
     export default text;

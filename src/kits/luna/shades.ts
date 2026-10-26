@@ -1,5 +1,6 @@
-/* Windows XP (Luna) scrollbar kit, the shades: the colours of every role of the construction, as
-   custom properties on a part's `:host`. Each part that draws with them (thumb, button, track, track
+// Plain CSS, as a string so that the published package needs no bundler plugin for it.
+export default `/* Windows XP (Luna) scrollbar kit, the shades: the colours of every role of the construction, as
+   custom properties on a part's \`:host\`. Each part that draws with them (thumb, button, track, track
    piece) adopts this block ahead of its own rules (kits/luna.ts), so the scheme's values inherited
    from the page resolve on the part itself. */
 
@@ -484,3 +485,4 @@
     --luna-glyph-disabled-k: rgba(0, 0, 0, 0.2);
     --luna-glyph-disabled-base: var(--luna-disabled);
 }
+`;

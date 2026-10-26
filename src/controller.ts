@@ -295,11 +295,13 @@ export class ScrollbarController implements InputHost {
         this.layoutDirty = true;
         this.listDirty = true;
         this.request();
+        this.tokens.observe(this.onTokenChange);
     }
 
     disconnect(): void {
         if (!this.connected) return;
         this.connected = false;
+        this.tokens.unobserve();
         if (this.kitWait) this.kitWait();
         this.kitWait = null;
         const { target } = this;
@@ -1189,6 +1191,12 @@ export class ScrollbarController implements InputHost {
         this.rects = { vertical: null, horizontal: null };
         this.layoutDirty = true;
         this.request();
+    };
+
+    // A host token changed (a style attribute, a rule, an animation): the parts that size from it and the
+    // layout read it again, as after refresh().
+    private readonly onTokenChange = (): void => {
+        if (this.connected) this.refresh();
     };
 
     private readonly onLayoutChange = (): void => {
