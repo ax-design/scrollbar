@@ -6,13 +6,15 @@ import { join } from 'node:path';
 const dir = import.meta.dir;
 const dist = join(dir, 'dist');
 // Sibling packages resolve to their sources through the `source` export condition.
-// The acrylic package is a sibling checkout: its sources, with the same copies of the others as ours.
+// The acrylic package: a sibling checkout's sources when there is one (with the same copies of the
+// others as ours), else the installed package.
 const sibling = join(dir, '../../acrylic/src/index.ts');
+const useSibling = existsSync(sibling);
 const built = await Bun.build({
     entrypoints: [join(dir, 'page.html')],
     outdir: dist,
     conditions: ['source'],
-    plugins: [
+    plugins: !useSibling ? [] : [
         {
             name: 'ax-acrylic',
             setup(b) {
