@@ -604,7 +604,7 @@ const checks: Check[] = [
         },
     },
     {
-        name: 'hide attribute: an empty list shows the buttons with a glyph, hide="button" hides them, the default look hides them with the touch indicator only',
+        name: 'hide attribute: an empty list shows the buttons with a glyph, hide="button" hides them, the default look hides nothing with the mouse',
         run: async (t) => {
             await t.reset();
             expect((await t.call('tagOf', 'v', 'button-end-vertical')) === 'AX-SCROLLBAR-BUTTON', 'the button is not an ax-scrollbar-button');
@@ -1840,7 +1840,7 @@ const checks: Check[] = [
         name: 'touch: a swipe along the bar in the hot zone drags from where it starts; the page does not scroll',
         run: async (t) => {
             const u = await t.touch();
-            await u.call('setAttr', 'v', 'touch-input', '');
+            await u.call('setAttr', 'v', 'touch', 'bar');
             try {
                 await u.reset();
                 await u.call('setScroll', 'v', 900);
@@ -1863,7 +1863,7 @@ const checks: Check[] = [
                 expect(has(active, 'thumb-pressed'), `during the swipe the thumb tokens are "${active.join(' ')}", want thumb-pressed`);
                 near((await u.call('scrollOf', 'v')).host, 900 - 40 * ratio, 1.5, 'scrollTop after a 40px swipe up (after the 6px that decided it)');
             } finally {
-                await u.call('setAttr', 'v', 'touch-input', null);
+                await u.call('setAttr', 'v', 'touch', null);
             }
         },
     },
@@ -1871,7 +1871,7 @@ const checks: Check[] = [
         name: 'touch: within the deadzone and across the bar nothing drags; out of the zone the content scrolls natively',
         run: async (t) => {
             const u = await t.touch();
-            await u.call('setAttr', 'v', 'touch-input', '');
+            await u.call('setAttr', 'v', 'touch', 'bar');
             try {
                 await u.reset();
                 await u.call('setScroll', 'v', 900);
@@ -1897,7 +1897,7 @@ const checks: Check[] = [
                 const native = (await u.call('scrollOf', 'v')).host;
                 expect(native > 950, `a swipe on the content did not scroll natively (scrollTop ${native})`);
             } finally {
-                await u.call('setAttr', 'v', 'touch-input', null);
+                await u.call('setAttr', 'v', 'touch', null);
             }
         },
     },
@@ -1905,7 +1905,7 @@ const checks: Check[] = [
         name: 'touch: a quick tap in the zone glides to it',
         run: async (t) => {
             const u = await t.touch();
-            await u.call('setAttr', 'v', 'touch-input', '');
+            await u.call('setAttr', 'v', 'touch', 'bar');
             try {
                 await u.reset();
                 const bar = await u.box('v', 'scrollbar-vertical');
@@ -1923,7 +1923,7 @@ const checks: Check[] = [
                 await u.settle();
                 near((await u.call('scrollOf', 'v')).host, want, 1, 'scrollTop after a tap');
             } finally {
-                await u.call('setAttr', 'v', 'touch-input', null);
+                await u.call('setAttr', 'v', 'touch', null);
             }
         },
     },
@@ -1932,7 +1932,7 @@ const checks: Check[] = [
         run: async (t) => {
             const u = await t.touch();
             await u.call('setStyle', 'v', '--ax-scrollbar-touch-idle-delay', '1s');
-            await u.call('setAttr', 'v', 'touch-input', '');
+            await u.call('setAttr', 'v', 'touch', 'bar');
             try {
                 await u.reset();
                 const bar = await u.box('v', 'scrollbar-vertical');
@@ -1958,7 +1958,7 @@ const checks: Check[] = [
                 expect(!(await u.call<string>('hostAttr', 'v', 'vertical-state')).split(' ').includes('near'), 'near stays after the idle delay');
             } finally {
                 await u.call('setStyle', 'v', '--ax-scrollbar-touch-idle-delay', '');
-                await u.call('setAttr', 'v', 'touch-input', null);
+                await u.call('setAttr', 'v', 'touch', null);
             }
         },
     },
@@ -2091,39 +2091,53 @@ const checks: Check[] = [
         },
     },
     {
-        name: 'hide per indicator: button:touch and track:touch go with the touch indicator, stay while it fades, come back with the mouse',
+        name: 'touch="indicator" (default): the touch indicator is a thumb alone (no buttons, track or corner), stays so while it fades, and the mouse brings the parts back; touch="bar" shows them on touch',
         run: async (t) => {
             const u = await t.touch();
             await u.reset();
-            await u.call('setAttr', 'v', 'hide', 'button:touch track:touch');
-            try {
-                const host = await u.box('v', 'host');
-                await u.page.mouse.move(host.left + 60, host.top + 60);
-                await u.frames(3);
-                expect((await u.call('hostAttr', 'v', 'indicator-state')) === 'mouse', 'precondition: mouse indicator');
-                expect((await u.call('display', 'v', 'button-end-vertical')) !== 'none', 'mouse: the buttons are hidden');
-                expect((await u.call('display', 'v', 'track-vertical')) !== 'none', 'mouse: the track is hidden');
-                // A touch that scrolls the content: the touch indicator.
+            const parts = async () => ({
+                buttons: (await u.call('display', 'v', 'button-end-vertical')) !== 'none',
+                track: (await u.call('display', 'v', 'track-vertical')) !== 'none',
+            });
+            const touchScroll = async (host: { left: number; top: number }) => {
                 const x = host.left + 100;
                 const y = host.top + 150;
                 await u.start(x, y);
                 for (let i = 1; i <= 6; i++) await u.move(x, y - i * 12);
                 await u.end();
                 await u.frames(3);
+            };
+            try {
+                const host = await u.box('v', 'host');
+                await u.page.mouse.move(host.left + 60, host.top + 60);
+                await u.frames(3);
+                expect((await u.call('hostAttr', 'v', 'indicator-state')) === 'mouse', 'precondition: mouse indicator');
+                let p = await parts();
+                expect(p.buttons && p.track, `mouse: buttons shown ${p.buttons}, track shown ${p.track}`);
+                await touchScroll(host);
                 expect((await u.call('hostAttr', 'v', 'indicator-state')) === 'touch', `after a touch scroll the indicator is ${await u.call('hostAttr', 'v', 'indicator-state')}`);
-                expect((await u.call('hostAttr', 'v', 'last-indicator')) === 'touch', 'last-indicator is not touch');
-                expect((await u.call('display', 'v', 'button-end-vertical')) === 'none', 'touch: the buttons are displayed');
-                expect((await u.call('display', 'v', 'track-vertical')) === 'none', 'touch: the track is displayed');
-                // Fading out (touch hide delay 100ms) it keeps the parts of the touch indicator.
+                p = await parts();
+                expect(!p.buttons && !p.track, `touch: buttons shown ${p.buttons}, track shown ${p.track}`);
+                // Fading out (touch idle delay 100ms) it keeps the parts of the touch indicator.
                 await u.sleep(400);
                 expect((await u.call('hostAttr', 'v', 'indicator-state')) === 'none', 'precondition: the indicator ended');
-                expect((await u.call('display', 'v', 'button-end-vertical')) === 'none', 'fading out after touch, the buttons came back');
+                p = await parts();
+                expect(!p.buttons && !p.track, `fading out after touch, buttons shown ${p.buttons}, track shown ${p.track}`);
                 await u.page.mouse.move(host.left + 70, host.top + 70);
                 await u.frames(3);
                 expect((await u.call('hostAttr', 'v', 'indicator-state')) === 'mouse', 'precondition: mouse again');
-                expect((await u.call('display', 'v', 'button-end-vertical')) !== 'none', 'mouse again: the buttons are hidden');
+                p = await parts();
+                expect(p.buttons && p.track, `mouse again: buttons shown ${p.buttons}, track shown ${p.track}`);
+                // touch="bar": a touch scroll shows the mouse indicator and every part.
+                await u.sleep(400);
+                await u.call('setAttr', 'v', 'touch', 'bar');
+                await u.settle();
+                await touchScroll(host);
+                expect((await u.call('hostAttr', 'v', 'indicator-state')) === 'mouse', `touch="bar": after a touch scroll the indicator is ${await u.call('hostAttr', 'v', 'indicator-state')}`);
+                p = await parts();
+                expect(p.buttons && p.track, `touch="bar": buttons shown ${p.buttons}, track shown ${p.track}`);
             } finally {
-                await u.call('setAttr', 'v', 'hide', '');
+                await u.call('setAttr', 'v', 'touch', null);
             }
         },
     },
@@ -2667,7 +2681,7 @@ const checks: Check[] = [
         },
     },
     {
-        name: 'touch-input: without it the bars take no touch input (the panning indicator); with it a finger on the bar drags',
+        name: 'touch: indicator (the default) takes no touch input; bar lets a finger on the bar drag',
         run: async (t) => {
             const u = await t.touch();
             await u.reset();
@@ -2684,15 +2698,15 @@ const checks: Check[] = [
             };
             // The default: no attribute, so the panning indicator takes no touch input.
             const passive = await drag();
-            expect(passive === 0, `without touch-input a finger on the thumb scrolled to ${passive}`);
+            expect(passive === 0, `with touch="indicator" a finger on the thumb scrolled to ${passive}`);
             try {
-                await u.call('setAttr', 'v', 'touch-input', '');
+                await u.call('setAttr', 'v', 'touch', 'bar');
                 await u.call('setScroll', 'v', 0);
                 await u.settle();
                 const active = await drag();
-                expect(active > 0, 'with touch-input a finger on the thumb did not drag');
+                expect(active > 0, 'with touch="bar" a finger on the thumb did not drag');
             } finally {
-                await u.call('setAttr', 'v', 'touch-input', null);
+                await u.call('setAttr', 'v', 'touch', null);
                 await u.call('setScroll', 'v', 0);
             }
         },
@@ -2743,6 +2757,38 @@ const checks: Check[] = [
                 const pad = [await card('padding-top'), await card('padding-right')].join(' ');
                 expect(pad === '6px 10px' && (await card('max-width')) === '240px', `card padding ${pad}, max width ${await card('max-width')}`);
                 expect((await card('transition-duration')).startsWith('0.15s'), `card fade ${await card('transition-duration')}`);
+            } finally {
+                await t.call('plainRemove', 'mn');
+                await t.park();
+            }
+        },
+    },
+    {
+        name: 'Minimal scales with --ax-scrollbar-thickness: bar, padding, minimum thumb, thumb at rest and engaged, and dots are the 14px numbers times thickness / 14',
+        run: async (t) => {
+            const css = await t.call<string>('minimalCss');
+            const html = '<div style="height: 4000px"><h2 id="a" style="margin: 2000px 0 0">Alpha</h2></div>';
+            await t.call('plainMake', 'mn', css, { class: 'minimal', hide: 'button', 'marker-selector': 'h2', 'marker-align': 'center', horizontal: 'hidden' }, html);
+            try {
+                for (const thickness of [8, 14, 24]) {
+                    const k = thickness / 14;
+                    await t.call('setStyle', 'mn', '--ax-scrollbar-thickness', `${thickness}px`);
+                    await t.page.mouse.move(0, 0);
+                    await t.sleep(900);
+                    const host = await t.box('mn', 'host');
+                    await t.page.mouse.move(host.left + 100, host.top + 100);
+                    await t.sleep(700);
+                    const bar = await t.box('mn', 'scrollbar-vertical');
+                    near(bar.width, thickness, 0.01, `${thickness}px: bar thickness`);
+                    near((await t.box('mn', 'area-vertical')).left - bar.left, 2 * k, 0.01, `${thickness}px: bar padding`);
+                    near((await t.box('mn', 'thumb-vertical')).height, 32 * k, 0.01, `${thickness}px: thumb minimum length`);
+                    near((await t.box('mn', 'thumb-vertical')).width, 4 * k, 0.05, `${thickness}px: thumb width at rest`);
+                    near((await t.box('mn', 'marker:a')).width, 4 * k, 0.05, `${thickness}px: marker width`);
+                    const tc = centre(await t.box('mn', 'thumb-vertical'));
+                    await t.page.mouse.move(tc.x, tc.y);
+                    await t.sleep(700);
+                    near((await t.box('mn', 'thumb-vertical')).width, 10 * k, 0.05, `${thickness}px: thumb width under the pointer`);
+                }
             } finally {
                 await t.call('plainRemove', 'mn');
                 await t.park();
@@ -3364,7 +3410,7 @@ const checks: Check[] = [
             const css = await t.call<string>('win11Css');
             const html = '<div style="height: 4000px; width: 2000px"><h2 id="a" style="margin: 0">Alpha</h2><h2 id="b" style="margin: 1500px 0 0">Beta</h2><h2 id="c" style="margin: 1500px 0 0">Gamma</h2></div>';
             const attrs = {
-                class: 'win11', hide: 'button:touch track:touch corner:touch', 'track-layers': 'scrollbar-fill acrylic', 'marker-selector': 'h2', 'marker-align': 'center',
+                class: 'win11', hide: '', 'track-layers': 'scrollbar-fill acrylic', 'marker-selector': 'h2', 'marker-align': 'center',
                 horizontal: 'hidden', 'data-variant': 'default',
             };
             await t.call('plainMake', 'w11', css, attrs, html);

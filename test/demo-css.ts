@@ -69,7 +69,7 @@ export function problems(css: string): string[] {
         if (rule.parts.length === 0) {
             for (const { name, value } of rule.declarations) {
                 if (name.startsWith('--')) {
-                    if (!HOST_TOKEN.has(name) && !name.startsWith('--acrylic-')) out.push(`${rule.selector}: ${name} is not a host token`);
+                    if (!HOST_TOKEN.has(name) && !name.startsWith('--acrylic-') && !name.startsWith('--minimal-')) out.push(`${rule.selector}: ${name} is not a host token`);
                 } else out.push(`${rule.selector}: ${name}: ${value} is a drawing property`);
             }
             continue;

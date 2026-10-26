@@ -169,15 +169,14 @@ For other content, extend `AxScrollbarCard` in a kit and override `render(marker
 
 ### Hiding parts
 
-`hide` lists the parts a look leaves out: `thumb`, `button`, `track` (with its pieces), `track-piece`, `corner`, `marker`, `card`. A hidden part takes no room and no input: hidden markers are not measured and hidden cards do not open. `part:mouse` or `part:touch` hides a part only for that indicator, and while the bars fade out after it.
+`hide` is a plain space-separated list of the parts a look never shows: `thumb`, `button`, `track` (with its pieces), `track-piece`, `corner`, `marker`, `card`. A hidden part takes no room and no input: hidden markers are not measured and hidden cards do not open. Unknown names are ignored.
 
 ```html
 <ax-scroll-view hide="button">...</ax-scroll-view>
-<ax-scroll-view hide="button:touch track:touch corner:touch">...</ax-scroll-view>
-<ax-scroll-view hide="">...</ax-scroll-view>
+<ax-scroll-view hide="button track corner">...</ax-scroll-view>
 ```
 
-Without the attribute the default look hides `button:touch track:touch corner:touch`; a kit gives its own default (`hide` of the kit). The attribute, even empty, overrides both.
+The default is an empty list, so the default look shows its buttons and track with a mouse; a kit gives its own default (`hide` of the kit). The attribute, even empty, overrides it. What touch hides is not a matter of `hide`, see [Touch](#touch).
 
 ### Layers by configuration
 
@@ -254,7 +253,12 @@ The kit is also the worked example of writing a kit. Each of its parts extends t
 
 ### Touch
 
-Without `touch-input` (the default) the touch indicator is a panning indicator: the bars take no touch input and the page scrolls under a finger as usual. With `touch-input`, a finger that comes down on a bar or in its hot zone belongs to the bar and decides after 5px: steeply along the bar it drags (relative to where it is), across it nothing more happens. A quick tap glides to the tapped place or activates the marker under it. The hovered marker and its card stay for `--ax-scrollbar-touch-idle-delay` after the finger lifts.
+`touch` picks what the bars are on touch:
+
+* `indicator` (the default, the Windows 8 behaviour): the bars show only the thumb, as a panning indicator that takes no input. The buttons, the track and the corner are left out while it shows and while it fades out, the mouse brings them back, and the page scrolls under a finger as usual.
+* `bar`: on touch the bars look and work as with a mouse. A finger that comes down on a bar or in its hot zone belongs to the bar and decides after 5px: steeply along the bar it drags (relative to where it is), across it nothing more happens. A quick tap glides to the tapped place or activates the marker under it.
+
+In both modes the hovered marker and its card stay for `--ax-scrollbar-touch-idle-delay` after the finger lifts.
 
 ### Accessibility
 
@@ -276,8 +280,8 @@ On `<ax-scroll-view>` and `<ax-scrollbar>`. A change is picked up at once; a cha
 | Attribute | Values / default | Meaning |
 |-----------|------------------|---------|
 | `vertical`, `horizontal` | `auto` (default), `always`, `hidden` | `auto`: shown while there is something to scroll. `always`: always shown, `disabled` when nothing scrolls. `hidden`: never shown. |
-| `hide` | list of parts | See [Hiding parts](#hiding-parts). |
-| `touch-input` | boolean | Touch input on the bars. See [Touch](#touch). |
+| `hide` | list of parts | The parts never shown. See [Hiding parts](#hiding-parts). |
+| `touch` | `indicator` (default), `bar` | What the bars are on touch. See [Touch](#touch). |
 | `track-click` | `page` (default), `jump` | A press on the track pages, or scrolls to the pointer. |
 | `snap` | boolean | Thumb edges and markers on whole device pixels, for themes that reproduce a desktop control. |
 | `kit` | kit name | Build the parts with that kit. |

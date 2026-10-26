@@ -5,7 +5,7 @@ import { followThumb } from './follow.js';
 import type { Shown } from './follow.js';
 import { Glide } from './glide.js';
 import { DEFAULT_HIDE, HideList } from './hide.js';
-import type { HidePart, ShownIndicator } from './hide.js';
+import type { HidePart } from './hide.js';
 import { BarInput } from './input.js';
 import type { InputHost, Region } from './input.js';
 import { MarkerSet } from './markers.js';
@@ -214,9 +214,9 @@ export class ScrollbarController implements InputHost {
     private lastTime = 0;
 
     private indicator: Indicator = 'none';
-    // The indicator the bars show, or last showed while they fade out: it picks the parts of the
-    // hide list.
-    private lastShown: ShownIndicator = 'mouse';
+    // The indicator the bars show, or last showed while they fade out: with the touch indicator the
+    // bars are a thumb alone, and stay so while they fade out.
+    private lastShown: 'mouse' | 'touch' = 'mouse';
     private hideList = new HideList(DEFAULT_HIDE);
     private indicatorTimer = 0;
     private cardTimer = 0;
@@ -439,17 +439,18 @@ export class ScrollbarController implements InputHost {
         return this.suspended() || (this.kit === null && this.indicator === 'none');
     }
 
-    // `touch-input`: on touch the bars take input (a finger drags, pages and presses). Without it, the
-    // default, the bars take no touch input: the touch indicator is the panning indicator.
-    private touchInput(): boolean {
-        return this.attr('touch-input') !== null;
+    // `touch="bar"`: on touch the bars look and work as with a mouse (a finger drags, pages and
+    // presses). `indicator`, the default: the bars are a thumb alone that takes no input, the panning
+    // indicator.
+    private touchBar(): boolean {
+        return this.attr('touch') === 'bar';
     }
 
     // Whether a press of this pointer type may start on a bar now. A touch may start on a hidden
     // bar of the default look, as on the reference: the edge of the screen is where a finger scrubs.
     private interactive(touch: boolean): boolean {
         if (this.suspended()) return false;
-        if (touch) return this.touchInput();
+        if (touch) return this.touchBar();
         return !this.inert();
     }
 
@@ -499,7 +500,8 @@ export class ScrollbarController implements InputHost {
 
     // Whether the look leaves a part out now (see hide.ts): a hidden part takes no input.
     hidden(part: HidePart): boolean {
-        return this.hideList.hidden(part, this.lastShown);
+        if (this.lastShown === 'touch' && (part === 'button' || part === 'track' || part === 'track-piece' || part === 'corner')) return true;
+        return this.hideList.hidden(part);
     }
 
     trackClick(): 'page' | 'jump' {
@@ -1170,7 +1172,7 @@ export class ScrollbarController implements InputHost {
 
     private showIndicator(kind: 'mouse' | 'touch'): void {
         if (this.suspended()) return;
-        if (this.indicatorPinned()) kind = 'mouse';
+        if (this.indicatorPinned() || this.touchBar()) kind = 'mouse';
         this.setIndicator(kind);
         this.armIndicator();
         this.request();

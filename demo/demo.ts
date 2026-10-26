@@ -14,22 +14,22 @@ registerAcrylicLayer();
 // The variants of the Windows 11 look (win11.css sets what a variant changes, on the parts and on the host; here is what
 // only an attribute can set): Default is the auto-hiding bar, Minimal the indicator alone, Full the bar permanently expanded.
 type Win11Variant = 'default' | 'minimal' | 'full';
-const WIN11: Record<Win11Variant, { hide: string; touchInput: boolean; indicator: 'auto' | 'near' | 'pinned'; note: string }> = {
+const WIN11: Record<Win11Variant, { hide: string; touch: 'indicator' | 'bar'; indicator: 'auto' | 'near' | 'pinned'; note: string }> = {
     default: {
-        hide: 'button:touch track:touch corner:touch',
-        touchInput: false,
+        hide: '',
+        touch: 'indicator',
         indicator: 'auto',
         note: 'Default: the scrollbar of native Windows 11 apps (WinUI ScrollBar). Nothing at rest; a 2px line shows when the pointer moves over the list, and over the bar it grows into thumb, acrylic track and arrows after 400ms.',
     },
     minimal: {
         hide: 'button track corner',
-        touchInput: true,
+        touch: 'bar',
         indicator: 'near',
         note: 'Minimal: the Fluent overlay scrollbar of Chrome and Edge in minimal mode (Chromium source). A thumb alone, shown by scrolling or by the pointer at the bar, 4px thin at the edge, 9px and darker under the pointer; it fades after 750ms.',
     },
     full: {
-        hide: 'button:touch track:touch corner:touch',
-        touchInput: false,
+        hide: '',
+        touch: 'indicator',
         indicator: 'pinned',
         note: 'Full: Settings > Accessibility > Always show scrollbars (WinUI ScrollBar, expanded): the 6px thumb, acrylic track and arrows are always there.',
     },
@@ -40,7 +40,7 @@ const win11Views = Array.from(document.querySelectorAll<HTMLElement>('ax-scroll-
 function setWin11(el: HTMLElement, variant: Win11Variant): void {
     el.dataset.variant = variant;
     el.setAttribute('hide', WIN11[variant].hide);
-    el.toggleAttribute('touch-input', WIN11[variant].touchInput);
+    el.setAttribute('touch', WIN11[variant].touch);
     el.setAttribute('indicator', WIN11[variant].indicator);
     if (el === win11Views[0]) {
         const note = document.getElementById('win11-variant-note');
@@ -68,7 +68,7 @@ function setPageBar(): void {
     const bar = document.createElement('ax-scrollbar');
     bar.setAttribute('marker-selector', 'h2');
     bar.setAttribute('marker-align', 'center');
-    if (select.value !== 'win8') bar.setAttribute('touch-input', '');
+    if (select.value !== 'win8') bar.setAttribute('touch', 'bar');
     if (select.value === 'minimal') {
         bar.className = 'minimal';
         bar.setAttribute('hide', 'button');

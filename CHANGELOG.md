@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented in this file.
 
+## 0.3.0
+
+- `touch="indicator|bar"` is the one setting for touch. `indicator` (the default) shows the thumb alone as a panning indicator that takes no input; `bar` makes the bars look and work on touch as they do with a mouse. It replaces `touch-input`.
+- `hide` is a plain space-separated list of the parts a look never shows. The `:touch` and `:mouse` qualifiers are gone, and the default list is empty: the touch indicator leaves the buttons, the track and the corner out by itself.
+- `demo/minimal.css` sizes every part from the thickness (one unit is a fourteenth of it), so `--ax-scrollbar-thickness` scales the whole Minimal look, as it does the default look.
+
 ## 0.2.0
 
 - The default look follows `--ax-scrollbar-thickness`. The thumb and the hovered marker fill the bar, and the buttons (33/17 of the thickness long), the arrows and the markers are the Windows 8 numbers scaled by `thickness / 17px`, so a bar of any thickness is the same drawing and a bar of 17px is unchanged. `--ax-scrollbar-button-length` is the proportion when unset.

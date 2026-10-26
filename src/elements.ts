@@ -19,7 +19,7 @@ const CONFIG_ATTRIBUTES = [
     'kit',
     'track-click',
     'suspended',
-    'touch-input',
+    'touch',
     'indicator',
     // The layers of each kind of part (see AxScrollbarPart.layerNames_).
     'thumb-layers',

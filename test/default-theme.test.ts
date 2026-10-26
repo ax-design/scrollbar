@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test';
 import { BUTTON_CSS, CARD_CSS, THUMB_CSS } from '../src/parts/default-css.js';
 import { SHADOW_STYLE } from '../src/style.js';
 import { CSS_PROPERTIES, HOST_PROPERTIES, LOOK_PROPERTIES } from '../src/tokens.js';
-import { DEFAULT_HIDE } from '../src/hide.js';
 
 const initial = (name: string): string | undefined => [...HOST_PROPERTIES, ...LOOK_PROPERTIES, ...CSS_PROPERTIES].find((spec) => spec.name === `--ax-scrollbar-${name}`)?.initial;
 
@@ -29,7 +28,6 @@ describe('default look (Windows 8)', () => {
     });
 
     test('the touch indicator is a thumb alone', () => {
-        expect(DEFAULT_HIDE).toBe('button:touch track:touch corner:touch');
         expect(THUMB_CSS).toContain(':host([touch]) { --ax-scrollbar-part-size: 4px;');
         expect(SHADOW_STYLE).toContain(':host([last-indicator="touch"]) { --ax-scrollbar-thumb-min-length: 17px; }');
     });

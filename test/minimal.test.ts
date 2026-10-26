@@ -20,11 +20,21 @@ describe('demo/minimal.css', () => {
         expect(unknownNames(css)).toEqual([]);
     });
 
-    test('is a thin bar: 14px, a 4px thumb that widens to 10px, 4px dots', () => {
+    test('is a thin bar: 14px, a thumb of 4 units that widens to 10, dots of 4, a unit being a fourteenth of the thickness', () => {
         expect(hostValue(css, '--ax-scrollbar-thickness')).toBe('14px');
-        expect(partValue(css, 'thumb', '--ax-scrollbar-part-size')).toBe('4px');
-        expect(partValue(css, 'thumb-engaged', '--ax-scrollbar-part-size')).toBe('10px');
-        expect(partValue(css, 'marker', '--ax-scrollbar-part-size')).toBe('4px');
+        expect(hostValue(css, '--minimal-unit')).toBe('calc(var(--ax-scrollbar-thickness) / 14)');
+        expect(partValue(css, 'thumb', '--ax-scrollbar-part-size')).toBe('calc(var(--minimal-unit) * 4)');
+        expect(partValue(css, 'thumb-engaged', '--ax-scrollbar-part-size')).toBe('calc(var(--minimal-unit) * 10)');
+        expect(partValue(css, 'marker', '--ax-scrollbar-part-size')).toBe('calc(var(--minimal-unit) * 4)');
         expect(partValue(css, 'marker', '--ax-scrollbar-part-thickness')).toBe('auto');
+    });
+
+    test('no size of the bar is a fixed length: the parts and the host tokens scale with the thickness', () => {
+        const bar = css
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            .split('\n')
+            .filter((line) => /--ax-scrollbar-(part-size|part-thickness|padding|thumb-min-length|slide-distance)\s*:/.test(line));
+        expect(bar.length).toBeGreaterThan(8);
+        expect(bar.filter((line) => /\d+px/.test(line) && !line.includes('--minimal-unit'))).toEqual([]);
     });
 });
