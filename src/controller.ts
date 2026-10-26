@@ -18,7 +18,7 @@ import { Piece, isPart, writeStyle } from './piece.js';
 import type { ScrollTarget } from './target.js';
 import { HostTokens } from './tokens.js';
 import { AXES } from './types.js';
-import type { Axis, Placement, ScrollMarker } from './types.js';
+import type { Axis, Placement, ScrollMarker, ScrollMarkerInput } from './types.js';
 import type { PartKind } from './parts/part.js';
 
 export interface ControllerOptions {
@@ -127,21 +127,39 @@ const motionQuery = (): MediaQueryList | null =>
 const drawnOffset = (m: PlacedMarker): number => (m.shown === null ? m.offset : m.shown);
 
 // A node, not instanceof: the element may come from another window (an iframe).
-const isElement = (entry: ScrollMarker | Element): entry is Element => typeof (entry as Node).nodeType === 'number' && (entry as Node).nodeType === 1;
+const isElement = (entry: ScrollMarkerInput | Element): entry is Element => typeof (entry as Node).nodeType === 'number' && (entry as Node).nodeType === 1;
 
-// Ids of elements given as markers without an id of their own: the same element keeps its id
-// across sets, so its card and hover survive a new list.
-const elementIds = new WeakMap<Element, string>();
-let elementCount = 0;
+// Ids of markers given without one: the same element (or object) keeps its id across sets, so its
+// card and hover survive a new list.
+const generatedIds = new WeakMap<object, string>();
+let generatedCount = 0;
+
+function generatedId(key: object): string {
+    let id = generatedIds.get(key);
+    if (!id) {
+        id = `ax-marker-element-${generatedCount++}`;
+        generatedIds.set(key, id);
+    }
+    return id;
+}
+
+const elementLabel = (el: Element): string => (el.getAttribute('aria-label') || el.textContent || '').trim();
 
 function elementMarker(el: Element, axis: Axis): ScrollMarker {
-    let id = el.id;
-    if (!id) {
-        id = elementIds.get(el) || `ax-marker-element-${elementCount++}`;
-        elementIds.set(el, id);
-    }
-    const label = (el.getAttribute('aria-label') || el.textContent || '').trim();
-    return { id, label, axis, element: el };
+    return { id: el.id || generatedId(el), label: elementLabel(el), axis, element: el };
+}
+
+// A marker object with all it needs is used as it is; one that leaves out its id or label gets them
+// from its element (its own id and label for a marker without an element). Without an id the markers
+// of a list would be one, as a list keeps one marker per id.
+function objectMarker(entry: ScrollMarkerInput): ScrollMarker {
+    if (typeof entry.id === 'string' && typeof entry.label === 'string') return entry as ScrollMarker;
+    const { element } = entry;
+    return {
+        ...entry,
+        id: typeof entry.id === 'string' ? entry.id : (element && element.id) || generatedId(element || entry),
+        label: typeof entry.label === 'string' ? entry.label : element ? elementLabel(element) : '',
+    };
 }
 
 function clear(el: HTMLElement): void {
@@ -171,7 +189,7 @@ export class ScrollbarController implements InputHost {
 
     // What was set as `markers`, and the markers made of it. null: nothing was set, or null was,
     // and marker-selector is in charge.
-    private entries: (ScrollMarker | Element)[] | null = null;
+    private entries: (ScrollMarkerInput | Element)[] | null = null;
     private list: ScrollMarker[] = [];
     // The kit of the kit attribute, null for the default parts or while it is not defined yet.
     private kit: ScrollbarKit | null = null;
@@ -239,7 +257,7 @@ export class ScrollbarController implements InputHost {
     // Markers, elements of the content, or both (an array, a NodeList). An element becomes a
     // marker of its own; it is read again whenever the markers are collected (its label may change).
     // A list, even an empty one, replaces the markers of marker-selector; null gives them back.
-    set markers(value: Iterable<ScrollMarker | Element> | null) {
+    set markers(value: Iterable<ScrollMarkerInput | Element> | null) {
         this.entries = value === null || value === undefined ? null : Array.from(value);
         this.list = this.normalise();
         this.listDirty = true;
@@ -1052,13 +1070,14 @@ export class ScrollbarController implements InputHost {
     private normalise(): ScrollMarker[] {
         const axis = this.markerAxis();
         if (this.entries === null) return [];
-        return this.entries.map((entry) => (isElement(entry) ? elementMarker(entry, axis) : entry));
+        return this.entries.map((entry) => (isElement(entry) ? elementMarker(entry, axis) : objectMarker(entry)));
     }
 
     private collectMarkers(): void {
         let list: ScrollMarker[];
         if (this.entries !== null) {
-            if (this.entries.some(isElement)) this.list = this.normalise();
+            // Read again: the label of an element may have changed.
+            this.list = this.normalise();
             list = this.list.slice();
         } else {
             list = this.selectorMarkers();

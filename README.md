@@ -136,7 +136,7 @@ A marker is a tick on the track for a place in the content, such as a heading or
 
 Each match becomes a marker: its id is the element's `id` (or `ax-marker-N`), its label its text. Matches are read again when the content adds or removes nodes; after another kind of change call `refreshMarkers()`. `marker-axis="horizontal"` puts them on the horizontal bar.
 
-Or set the `markers` property, which wins over the selector while it holds a list (even an empty one); `null` gives control back to the selector. It takes elements, a `NodeList`, marker objects, or a mix:
+Or set the `markers` property, which wins over the selector while it holds a list (even an empty one); `null` gives control back to the selector. It takes elements, a `NodeList`, marker objects, or a mix. A marker object with an `element` needs no `id` or `label`: they come from the element, as for a bare element.
 
 ```javascript
 view.markers = [
@@ -258,8 +258,8 @@ Without `touch-input` (the default) the touch indicator is a panning indicator: 
 
 ### Accessibility
 
-* Native scrolling and focus stay. The viewport is a real scroll container with `tabindex="0"`, and focusing the element focuses it (`delegatesFocus`). Name a scroll view as any focusable region: `<ax-scroll-view role="region" aria-label="...">`.
-* The bars and cards are `aria-hidden="true"`, with no role and not in the tab order. Markers are for the pointer: give links or buttons for the same destinations.
+* Native scrolling and focus stay. The viewport is a real scroll container. It takes focus (`tabindex="0"`) only while nothing inside it can, so a text-only region stays scrollable by keys, and a region with links, buttons or fields adds no Tab stop of its own: focus goes into the content and the arrow and page keys scroll from there. It is checked again when the content or the attributes that decide focus change. Focusing the element focuses the viewport while it takes focus (`delegatesFocus`). The element has no role or label of its own; add them as for any element: `<ax-scroll-view role="region" aria-label="...">`.
+* The bars and cards are `aria-hidden="true"`, with no role and not in the tab order. Markers are for the pointer: give links or buttons for the same destinations. The accessibility tree shows only the content.
 * Forced colours (`forced-colors: active`): the overlay is hidden and the native scrollbars come back. Printing does the same.
 * Reduced motion (`prefers-reduced-motion: reduce`): no glide, no thumb lag, and parts change look at once. The default card drops its movement and closes by itself after `--ax-scrollbar-touch-idle-delay`.
 

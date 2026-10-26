@@ -1613,7 +1613,8 @@ const checks: Check[] = [
                 const host = document.getElementById('sel') as HTMLElement & { __count: number };
                 host.__count = 0;
                 host.querySelectorAll = function (this: Element, selector: string) {
-                    (this as unknown as { __count: number }).__count++;
+                    // Only the queries of marker-selector: the focus check of the viewport queries too.
+                    if (selector === this.getAttribute('marker-selector')) (this as unknown as { __count: number }).__count++;
                     return Element.prototype.querySelectorAll.call(this, selector);
                 } as typeof host.querySelectorAll;
             });
@@ -3578,7 +3579,281 @@ const checks: Check[] = [
             }
         },
     },
+    {
+        name: 'markers given as objects with element and axis keep their own ticks',
+        run: async (t) => {
+            const result = await t.page.evaluate(async () => {
+                const view = document.createElement('ax-scroll-view') as any;
+                view.id = 'mk';
+                view.style.cssText = 'position:absolute;left:20px;top:20px;width:300px;height:200px;';
+                view.innerHTML = '<div style="width:1500px;height:2000px;position:relative"></div>';
+                const box = view.firstElementChild as HTMLElement;
+                const make = (axis: string, at: number) => {
+                    const e = document.createElement('i');
+                    e.style.cssText = `position:absolute;${axis === 'vertical' ? 'top' : 'left'}:${at}px;width:2px;height:2px`;
+                    box.appendChild(e);
+                    return e;
+                };
+                document.body.appendChild(view);
+                view.markers = [
+                    { id: 'a', label: 'A', axis: 'vertical', element: make('vertical', 100) },
+                    { id: 'b', label: 'B', axis: 'vertical', element: make('vertical', 700) },
+                    { id: 'c', label: 'C', axis: 'vertical', element: make('vertical', 1300) },
+                    { id: 'd', label: 'D', axis: 'horizontal', element: make('horizontal', 200) },
+                    { id: 'e', label: 'E', axis: 'horizontal', element: make('horizontal', 900) },
+                ];
+                await new Promise((r) => setTimeout(r, 300));
+                const sh = view.shadowRoot;
+                const ticks = (cls: string) =>
+                    Array.from(sh.querySelectorAll(`.bar.${cls} .slot`))
+                        .filter((s: any) => getComputedStyle(s).display !== 'none')
+                        .map((s: any) => [s.firstElementChild.dataset.id, s.style.transform]);
+                const out = { v: ticks('v'), h: ticks('h') };
+                view.remove();
+                return out;
+            });
+            // The same without ids and labels: they come from the elements, one tick for each.
+            const bare = await t.page.evaluate(async () => {
+                const view = document.createElement('ax-scroll-view') as any;
+                view.style.cssText = 'position:absolute;left:20px;top:20px;width:300px;height:200px;';
+                view.innerHTML = '<div style="height:2000px;position:relative"></div>';
+                const list = [100, 700, 1300].map((at, i) => {
+                    const e = document.createElement('i');
+                    e.textContent = 'Bare ' + i;
+                    e.style.cssText = `position:absolute;top:${at}px;width:2px;height:2px`;
+                    view.firstElementChild.appendChild(e);
+                    return { axis: 'vertical', element: e };
+                });
+                document.body.appendChild(view);
+                view.markers = list;
+                await new Promise((r) => setTimeout(r, 300));
+                const rows = Array.from(view.shadowRoot.querySelectorAll('.bar.v .slot')).map((x: any) => [getComputedStyle(x).display, x.style.transform]);
+                const labels = view.markers.map((m: any) => m.label);
+                view.remove();
+                return { rows, labels };
+            });
+            expect(bare.rows.length === 3 && new Set(bare.rows.map((r: string[]) => r[1])).size === 3, `markers without ids: ${JSON.stringify(bare.rows)}`);
+            expect(bare.labels.join('|') === 'Bare 0|Bare 1|Bare 2', `labels of markers without labels: ${bare.labels}`);
+            const ids = (rows: string[][]) => rows.map((r) => r[0]).join(',');
+            expect(ids(result.v) === 'a,b,c', `vertical ticks: ${JSON.stringify(result.v)}`);
+            expect(ids(result.h) === 'd,e', `horizontal ticks: ${JSON.stringify(result.h)}`);
+            expect(new Set(result.v.map((r: string[]) => r[1])).size === 3, `vertical ticks share a place: ${JSON.stringify(result.v)}`);
+        },
+    },
+    {
+        name: 'a11y: Tab goes into the content when it has a link, and skips the viewport',
+        run: async (t) => {
+            await mountA11y(t, '<p>Intro</p><a id="a11y-link" href="#x">First link</a><p>More</p>');
+            try {
+                expect((await viewportTabindex(t)) === null, `the viewport has tabindex ${await viewportTabindex(t)} with a link inside`);
+                await t.page.focus('#a11y-before');
+                await t.page.keyboard.press('Tab');
+                expect((await focusPath(t)) === 'a#a11y-link', `Tab from the button reached ${await focusPath(t)}, want the link`);
+                await t.page.keyboard.press('Tab');
+                expect((await focusPath(t)) === 'button#a11y-after', `the next Tab reached ${await focusPath(t)}, want the button after the view`);
+                await t.page.keyboard.press('Shift+Tab');
+                await t.page.keyboard.press('Shift+Tab');
+                expect((await focusPath(t)) === 'button#a11y-before', `Shift+Tab ended on ${await focusPath(t)}, want the button before the view`);
+            } finally {
+                await unmountA11y(t);
+            }
+        },
+    },
+    {
+        name: 'a11y: a text-only view takes focus and the keys scroll it',
+        run: async (t) => {
+            await mountA11y(t, '<p>Only text</p>', 3000);
+            try {
+                expect((await viewportTabindex(t)) === '0', `the viewport has tabindex ${await viewportTabindex(t)} with no focusable content`);
+                await t.page.focus('#a11y-before');
+                await t.page.keyboard.press('Tab');
+                expect((await focusPath(t)) === 'div.viewport', `Tab reached ${await focusPath(t)}, want the viewport`);
+                const top = () => t.page.evaluate(() => (document.getElementById('a11y-view') as any).scrollTop as number);
+                const wait = async () => {
+                    await t.call('frames', 3);
+                    await t.sleep(150);
+                };
+                await t.page.keyboard.press('PageDown');
+                await wait();
+                const afterPage = await top();
+                expect(afterPage > 100, `PageDown left scrollTop at ${afterPage}`);
+                await t.page.keyboard.press('ArrowDown');
+                await wait();
+                const afterArrow = await top();
+                expect(afterArrow > afterPage, `ArrowDown left scrollTop at ${afterArrow} (was ${afterPage})`);
+                await t.page.keyboard.press('End');
+                await wait();
+                const max = await t.page.evaluate(() => { const v = document.getElementById('a11y-view') as any; return v.scrollHeight - v.clientHeight; });
+                near(await top(), max, 1, 'scrollTop after End');
+                await t.page.keyboard.press('Home');
+                await wait();
+                near(await top(), 0, 1, 'scrollTop after Home');
+            } finally {
+                await unmountA11y(t);
+            }
+        },
+    },
+    {
+        name: 'a11y: adding or removing a focusable child flips the tabindex',
+        run: async (t) => {
+            await mountA11y(t, '<p>Text</p><div id="a11y-slot"></div>');
+            try {
+                const step = async (what: string, change: string, want: string | null) => {
+                    await t.page.evaluate(`(() => { const view = document.getElementById('a11y-view'); const slot = document.getElementById('a11y-slot'); ${change} })()`);
+                    await t.call('frames', 2);
+                    const got = await viewportTabindex(t);
+                    expect(got === want, `${what}: tabindex is ${got}, want ${want}`);
+                };
+                expect((await viewportTabindex(t)) === '0', 'text only: tabindex is not 0');
+                await step('a button added', "slot.innerHTML = '<button id=\"a11y-btn\">Go</button>'", null);
+                await step('the button removed', "slot.innerHTML = ''", '0');
+                await step('a link added', "slot.innerHTML = '<a id=\"a11y-ln\">no href</a>'", '0');
+                await step('the link gets an href', "document.getElementById('a11y-ln').setAttribute('href', '#y')", null);
+                await step('the link leaves the Tab order', "document.getElementById('a11y-ln').setAttribute('tabindex', '-1')", '0');
+                await step('an input added', "slot.innerHTML = '<input id=\"a11y-in\">'", null);
+                await step('the input disabled', "document.getElementById('a11y-in').disabled = true", '0');
+                await step('a nested [tabindex=0] added', "slot.innerHTML = '<div><span tabindex=\"0\">x</span></div>'", null);
+            } finally {
+                await unmountA11y(t);
+            }
+        },
+    },
+    {
+        name: 'a11y: bars and cards never take focus, are aria-hidden, and the tree shows only the content',
+        run: async (t) => {
+            await mountA11y(t, '<h2>Heading</h2><a href="#x">A link</a><p>Body text</p>', 2000, true);
+            try {
+                // Hover a marker to have a card open, so the card is in the shadow root too.
+                await t.call('frames', 3);
+                const info = await t.page.evaluate(() => {
+                    const view = document.getElementById('a11y-view') as any;
+                    const root = view.shadowRoot as ShadowRoot;
+                    const hidden = (selector: string) => Array.from(root.querySelectorAll(selector)).map((n) => n.getAttribute('aria-hidden'));
+                    const focusable = Array.from(root.querySelectorAll('.frame *, .cards *, .frame, .cards')).filter((n: any) => n.tabIndex >= 0 || n.hasAttribute('tabindex'));
+                    return { frame: hidden('.frame'), cards: hidden('.cards'), focusable: focusable.length, cardsText: (root.querySelector('.cards') as HTMLElement).textContent };
+                });
+                expect(info.frame.length === 1 && info.frame[0] === 'true', `.frame aria-hidden: ${info.frame}`);
+                expect(info.cards.length === 1 && info.cards[0] === 'true', `.cards aria-hidden: ${info.cards}`);
+                expect(info.focusable === 0, `${info.focusable} parts of the bars or cards can take focus`);
+                // Tab through the whole view and past it: nothing in the bars or cards is visited.
+                await t.page.focus('#a11y-before');
+                const visited: string[] = [];
+                for (let i = 0; i < 4; i++) {
+                    await t.page.keyboard.press('Tab');
+                    visited.push(await focusPath(t));
+                    if (visited[visited.length - 1] === 'button#a11y-after') break;
+                }
+                expect(visited.join(' > ') === 'a > button#a11y-after', `Tab order: ${visited.join(' > ')}`);
+                const snapshot: string = await t.page.locator('#a11y-view').ariaSnapshot();
+                expect(snapshot.includes('Heading') && snapshot.includes('A link') && snapshot.includes('Body text'), `the tree misses the content:\n${snapshot}`);
+                expect(!snapshot.includes('Marker label') && !/scrollbar|thumb|button|track/i.test(snapshot), `the tree shows the bars or cards:\n${snapshot}`);
+                expect(!/role|aria-label/.test(await t.page.evaluate(() => (document.getElementById('a11y-view') as HTMLElement).outerHTML.slice(0, 120))), 'the host got a role or label');
+            } finally {
+                await unmountA11y(t);
+            }
+        },
+    },
+    {
+        name: 'a11y: forced colours hide the overlay and bring back the native scrollbar',
+        run: async (t) => {
+            await mountA11y(t, '<p>Text</p>', 2000);
+            try {
+                const read = () =>
+                    t.page.evaluate(() => {
+                        const view = document.getElementById('a11y-view') as any;
+                        const root = view.shadowRoot as ShadowRoot;
+                        return {
+                            frame: getComputedStyle(root.querySelector('.frame') as HTMLElement).display,
+                            cards: getComputedStyle(root.querySelector('.cards') as HTMLElement).display,
+                            width: getComputedStyle(root.querySelector('.viewport') as HTMLElement).scrollbarWidth,
+                        };
+                    });
+                let state = await read();
+                expect(state.frame !== 'none' && state.width === 'none', `normal: ${JSON.stringify(state)}`);
+                await t.page.emulateMedia({ forcedColors: 'active' });
+                state = await read();
+                expect(state.frame === 'none' && state.cards === 'none', `forced colours: the overlay is shown: ${JSON.stringify(state)}`);
+                expect(state.width !== 'none', `forced colours: the viewport scrollbar-width is ${state.width}`);
+                await t.page.emulateMedia({ forcedColors: 'none' });
+                state = await read();
+                expect(state.frame !== 'none' && state.width === 'none', `forced colours off: ${JSON.stringify(state)}`);
+            } finally {
+                await t.page.emulateMedia({ forcedColors: 'none' });
+                await unmountA11y(t);
+            }
+        },
+    },
+    {
+        name: 'a11y: forced colours on the page scrollbar',
+        run: async (t) => {
+            try {
+                const read = () =>
+                    t.page.evaluate(() => {
+                        const bar = document.getElementById('page') as HTMLElement;
+                        const root = bar.shadowRoot as ShadowRoot;
+                        return {
+                            frame: getComputedStyle(root.querySelector('.frame') as HTMLElement).display,
+                            cards: getComputedStyle(root.querySelector('.cards') as HTMLElement).display,
+                            width: getComputedStyle(document.documentElement).scrollbarWidth,
+                        };
+                    });
+                let state = await read();
+                expect(state.frame !== 'none' && state.width === 'none', `normal: ${JSON.stringify(state)}`);
+                await t.page.emulateMedia({ forcedColors: 'active' });
+                state = await read();
+                expect(state.frame === 'none' && state.cards === 'none', `forced colours: the overlay is shown: ${JSON.stringify(state)}`);
+                expect(state.width !== 'none', `forced colours: the document scrollbar-width is ${state.width}`);
+                await t.page.emulateMedia({ forcedColors: 'none' });
+                state = await read();
+                expect(state.frame !== 'none' && state.width === 'none', `forced colours off: ${JSON.stringify(state)}`);
+            } finally {
+                await t.page.emulateMedia({ forcedColors: 'none' });
+            }
+        },
+    },
 ];
+
+// A scroll view of the accessibility checks, fixed in a corner and preceded and followed by a button,
+// first in the page so that Tab reaches it before the other scrollers. `markers` gives it one marker.
+async function mountA11y(t: Ctx, html: string, height = 600, markers = false): Promise<void> {
+    await t.page.evaluate(
+        ([content, tall, withMarkers]: [string, number, boolean]) => {
+            const holder = document.createElement('div');
+            holder.id = 'a11y-holder';
+            holder.style.cssText = 'position:fixed;left:0;top:0;width:260px;z-index:99999;background:#fff';
+            holder.innerHTML = `<button id="a11y-before">Before</button><ax-scroll-view id="a11y-view" style="position:relative;display:block;width:240px;height:150px"><div style="min-height:${tall}px">${content}</div></ax-scroll-view><button id="a11y-after">After</button>`;
+            document.body.prepend(holder);
+            if (withMarkers) {
+                const view = document.getElementById('a11y-view') as any;
+                view.markers = [{ element: view.querySelector('h2'), label: 'Marker label' }];
+            }
+        },
+        [html, height, markers],
+    );
+    await t.call('frames', 3);
+}
+
+async function unmountA11y(t: Ctx): Promise<void> {
+    await t.page.evaluate(() => document.getElementById('a11y-holder')?.remove());
+    await t.page.mouse.move(5, 595);
+}
+
+// The tabindex attribute of the viewport of #a11y-view, null when it has none.
+function viewportTabindex(t: Ctx): Promise<string | null> {
+    return t.page.evaluate(() => ((document.getElementById('a11y-view') as any).shadowRoot.querySelector('.viewport') as HTMLElement).getAttribute('tabindex'));
+}
+
+// The focused element, through the shadow roots: tag, then #id or .class.
+function focusPath(t: Ctx): Promise<string> {
+    return t.page.evaluate(() => {
+        let active: Element | null = document.activeElement;
+        while (active && active.shadowRoot && active.shadowRoot.activeElement) active = active.shadowRoot.activeElement;
+        if (!active) return '';
+        const tag = active.tagName.toLowerCase();
+        if (tag === 'a' && !active.id) return 'a';
+        return active.id ? `${tag}#${active.id}` : active.className ? `${tag}.${active.className}` : tag;
+    });
+}
 
 // AX_CHECK=<regular expression> runs only the checks whose name matches.
 if (process.env.AX_CHECK) {

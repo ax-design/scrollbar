@@ -1,7 +1,8 @@
 import { ScrollbarController } from './controller.js';
 import { DOCUMENT_STYLE, SHADOW_STYLE } from './style.js';
 import { documentTarget, elementTarget } from './target.js';
-import type { ScrollMarker } from './types.js';
+import { watchFocus } from './focus.js';
+import type { ScrollMarker, ScrollMarkerInput } from './types.js';
 
 // Server-side rendering imports this module without a DOM.
 const ElementBase: typeof HTMLElement = typeof HTMLElement !== 'undefined' ? HTMLElement : (class {} as unknown as typeof HTMLElement);
@@ -66,7 +67,7 @@ abstract class ScrollbarElement extends ElementBase {
 
     // Markers, elements of the content (an array, a NodeList), or both mixed. A list, even an empty
     // one, replaces the markers of marker-selector; null gives them back to the selector.
-    set markers(value: Iterable<ScrollMarker | Element> | null) {
+    set markers(value: Iterable<ScrollMarkerInput | Element> | null) {
         this.controller.markers = value;
     }
 
@@ -97,12 +98,13 @@ function styles(extra = ''): string {
 export class AxScrollView extends ScrollbarElement {
     static readonly ElementName = 'ax-scroll-view';
     readonly viewport: HTMLElement;
+    private unwatchFocus: (() => void) | null = null;
 
     constructor() {
         super();
-        // delegatesFocus: focusing the host focuses the viewport, so the keys scroll it.
+        // delegatesFocus: focusing the host focuses the viewport while it takes focus, so the keys scroll it.
         const root = this.attachShadow({ mode: 'open', delegatesFocus: true });
-        root.innerHTML = `${styles()}<div class="viewport" part="viewport" tabindex="0"><div class="content" part="content"><slot></slot></div></div><div class="frame"></div><div class="cards"></div>`;
+        root.innerHTML = `${styles()}<div class="viewport" part="viewport"><div class="content" part="content"><slot></slot></div></div><div class="frame"></div><div class="cards"></div>`;
         this.viewport = root.querySelector('.viewport') as HTMLElement;
         this.controller = new ScrollbarController({
             host: this,
@@ -117,10 +119,14 @@ export class AxScrollView extends ScrollbarElement {
     connectedCallback(): void {
         this.viewport.addEventListener('scroll', this.reemit);
         this.viewport.addEventListener('scrollend', this.reemit);
+        // The viewport takes focus only while the content has nothing that can.
+        this.unwatchFocus = watchFocus(this, this.viewport);
         this.controller.connect();
     }
 
     disconnectedCallback(): void {
+        if (this.unwatchFocus) this.unwatchFocus();
+        this.unwatchFocus = null;
         this.viewport.removeEventListener('scroll', this.reemit);
         this.viewport.removeEventListener('scrollend', this.reemit);
         this.controller.disconnect();

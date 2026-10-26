@@ -21,7 +21,7 @@ export {
     AxScrollbarDefaultTrackPiece,
 } from './parts/default.js';
 export type { Look } from './parts/animator.js';
-export type { Axis, Placement, ScrollMarker } from './types.js';
+export type { Axis, Placement, ScrollMarker, ScrollMarkerInput } from './types.js';
 
 // Defines <ax-scroll-view>, <ax-scrollbar>, the default parts (<ax-scrollbar-thumb> and so on),
 // the scrollbar-fill, scrollbar-glyph and elevation layers, and <ax-surface> with its layers. Safe to call
