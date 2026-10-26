@@ -42,6 +42,7 @@ function followIndicator(part: AxScrollbarPart, next: Readonly<PartState>): void
 }
 
 export class AxScrollbarDefaultThumb extends AxScrollbarThumb {
+    static hiddenAtRest = true;
     static schemaKey = SCHEMA_KEY;
     static extraSchema = T.LOOK_PROPERTIES;
     static styles = THUMB_CSS;
@@ -60,6 +61,7 @@ export class AxScrollbarDefaultThumb extends AxScrollbarThumb {
 }
 
 export class AxScrollbarDefaultButton extends AxScrollbarButton {
+    static hiddenAtRest = true;
     static schemaKey = SCHEMA_KEY;
     static extraSchema = T.LOOK_PROPERTIES;
     static styles = BUTTON_CSS;
@@ -78,6 +80,7 @@ export class AxScrollbarDefaultButton extends AxScrollbarButton {
 }
 
 export class AxScrollbarDefaultTrack extends AxScrollbarTrack {
+    static hiddenAtRest = true;
     static schemaKey = SCHEMA_KEY;
     static extraSchema = T.LOOK_PROPERTIES;
     static styles = TRACK_CSS;
@@ -96,6 +99,7 @@ export class AxScrollbarDefaultTrack extends AxScrollbarTrack {
 }
 
 export class AxScrollbarDefaultTrackPiece extends AxScrollbarTrackPiece {
+    static hiddenAtRest = true;
     static schemaKey = SCHEMA_KEY;
     static extraSchema = T.LOOK_PROPERTIES;
     static styles = PIECE_CSS;
@@ -114,6 +118,7 @@ export class AxScrollbarDefaultTrackPiece extends AxScrollbarTrackPiece {
 }
 
 export class AxScrollbarDefaultCorner extends AxScrollbarCorner {
+    static hiddenAtRest = true;
     static schemaKey = SCHEMA_KEY;
     static extraSchema = T.LOOK_PROPERTIES;
     static styles = CORNER_CSS;
@@ -132,6 +137,7 @@ export class AxScrollbarDefaultCorner extends AxScrollbarCorner {
 }
 
 export class AxScrollbarDefaultMarker extends AxScrollbarMarker {
+    static hiddenAtRest = true;
     static schemaKey = SCHEMA_KEY;
     static extraSchema = T.LOOK_PROPERTIES;
     static styles = MARKER_CSS;

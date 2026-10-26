@@ -299,6 +299,19 @@ const axTest = {
         document.body.appendChild(bar);
     },
 
+    // Whether a part is paused (see AxSurface.paused).
+    partPaused(id: string, name: string): boolean {
+        return !!(target(id, name) as unknown as { paused: boolean }).paused;
+    },
+
+    // Shows the bars of a scroller as a pointer moving over it does (a hidden bar draws nothing, so a check of
+    // what is drawn wakes it first).
+    wake(id: string): void {
+        const host = el(id);
+        const r = host.getBoundingClientRect();
+        host.dispatchEvent(new PointerEvent('pointermove', { pointerType: 'mouse', clientX: r.left + 4, clientY: r.top + 4, bubbles: true, composed: true }));
+    },
+
     // Puts the host of a scroller made by plainMake at a place, in CSS px (fractions allowed).
     plainPlace(id: string, left: number, top: number): void {
         const plain = plains.get(id);

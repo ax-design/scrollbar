@@ -112,6 +112,11 @@ export abstract class AxScrollbarPart extends AxSurface {
     static styles = RESET;
     // Set by each base class below.
     static readonly kind: PartKind;
+    // A look that shows nothing while the indicator is `none` (the default parts: they fade out and
+    // slide away). Such a part is paused (see AxSurface.paused) while it is hidden, so a page of
+    // scroll views costs no frame, no style read and no drawing until a bar shows: it starts paused,
+    // pauses again when its fade out has ended, and runs again when the indicator comes.
+    static hiddenAtRest = false;
 
     private state: PartState = initialState();
     private stateSet = false;
@@ -122,8 +127,18 @@ export abstract class AxScrollbarPart extends AxSurface {
     // The look properties last written, so a value at rest is not written again.
     private written: { [name: string]: string } = {};
 
+    private get hiddenAtRest(): boolean {
+        return (this.constructor as typeof AxScrollbarPart).hiddenAtRest;
+    }
+
+    // The last step of the look is still on its way (see stepLook).
+    private stepping = false;
+    // The part has been told to be hidden (the indicator was none) before its first step.
+    private sawHidden = false;
+
     constructor() {
         super();
+        if (this.hiddenAtRest) this.paused = true;
         const root = this.shadowRoot as ShadowRoot;
         const list = sheetsOf(this.constructor as typeof AxScrollbarPart);
         if (list.length && typeof list[0] !== 'string') root.adoptedStyleSheets = root.adoptedStyleSheets.concat(list as CSSStyleSheet[]);
@@ -156,6 +171,8 @@ export abstract class AxScrollbarPart extends AxSurface {
         else this.removeAttribute('direction');
         for (const [key, name] of BOOLEANS) this.toggleAttribute(name, (next[key] as boolean) || (key === 'hover' && next.pressed && (this.constructor as typeof AxScrollbarPart).kind === 'marker'));
         this.stateChanged(prev, next);
+        if (next.indicator === 'none') this.sawHidden = true;
+        if (this.hiddenAtRest && next.indicator !== 'none') this.paused = false;
         this.refresh();
     }
 
@@ -217,6 +234,8 @@ export abstract class AxScrollbarPart extends AxSurface {
         super.write(now, quality);
         // After the draw, which clears the dirty flags: the colours of a motion are read next frame.
         if (again) this.refresh();
+        // Hidden for good (until the indicator comes): nothing more to read or draw.
+        else if (this.hiddenAtRest && !this.stepping && this.state.indicator === 'none' && this.animator.current && this.animator.current.opacity === 0) this.paused = true;
     }
 
     disconnectedCallback(): void {
@@ -237,7 +256,15 @@ export abstract class AxScrollbarPart extends AxSurface {
         if (!target) return false;
         const dt = this.lastStep ? Math.min(MAX_FRAME, now - this.lastStep) : FIRST_FRAME;
         if (!this.lastStep) this.smoothing = readSmoothing(values);
+        // The first look of a part that was paused while hidden starts from its hidden look, so that it fades in
+        // as it does after any other time the indicator was away, and does not appear at once. (A part that
+        // is shown from its start, as with indicator="pinned", is there from the first frame.)
+        if (!this.animator.current && this.hiddenAtRest && this.sawHidden && this.state.indicator !== 'none') {
+            const hidden = this.look({ ...this.state, indicator: 'none' }, values);
+            if (hidden) this.animator.step(hidden, FIRST_FRAME, this.smoothing);
+        }
         const moving = this.animator.step(target, dt, this.smoothing);
+        this.stepping = moving;
         this.lastStep = moving ? now : 0;
         let colors = false;
         for (const [name, value] of lookProperties(this.animator.current!)) {

@@ -2,6 +2,11 @@
 
 All notable changes to this package are documented in this file.
 
+## 0.4.1
+
+- A bar that is not shown costs nothing. The default parts are paused (`@ax-design/surface` 0.4.3) while the indicator is away: a scroll view that nobody has touched runs no frame, reads no style and draws no layer, and its parts wake with the first scroll or pointer, fading in as before. A page of twenty scroll views scripts less than half as long when it mounts.
+- Benchmark and release checks: idle without a frame callback or a timer, parts paused at rest, and the thumb painted on the columns of the buttons at a fractional device pixel ratio.
+
 ## 0.4.0
 
 - One frame scheduler. The scrollbars no longer run a frame loop of their own: each is a client of the scheduler of `@ax-design/surface` (0.4.2), with its priority (a press on a bar, a pointer at one, a scroll the user watches, the rest), and the animation of a part's look steps in the part's own surface frame. Nothing in the package asks for an animation frame by itself. Every client of a frame reads before any of them writes, so twenty scroll views mounting or scrolling together lay out once, not once each.

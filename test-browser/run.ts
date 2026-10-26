@@ -1355,6 +1355,8 @@ const checks: Check[] = [
             const info = async (kit: string | null) => {
                 await t.call('setAttr', 'kit', 'kit', kit);
                 await t.settle();
+                // A hidden bar draws nothing: show it.
+                await t.call('wake', 'kit');
                 await t.frames(3);
                 return t.page.evaluate(() => {
                     const root = (document.getElementById('kit') as HTMLElement).shadowRoot!;
@@ -2221,9 +2223,12 @@ const checks: Check[] = [
         run: async (t) => {
             await t.reset();
             const points = () => t.call<string>('inner', 'v', 'button-end-vertical', '.layer-scrollbar-glyph polygon', 'points');
+            await t.call('wake', 'v');
+            await t.frames(3);
             const before = await points();
             await t.call('addStyle', 'glyph', 'ax-scroll-view::part(button) { --ax-scrollbar-glyph-width: 6px; --ax-scrollbar-glyph-height: 4px; --ax-scrollbar-glyph-thickness: 2px; --ax-scrollbar-glyph-offset: 1px; }');
             try {
+                await t.call('wake', 'v');
                 await t.frames(3);
                 // A down chevron in a 10px button: 6px wide, 4px deep, 1px below the track.
                 const after = await points();
@@ -2509,7 +2514,7 @@ const checks: Check[] = [
         name: 'thickness token, live: the default look follows --ax-scrollbar-thickness (17 -> 24 -> 8 -> 17) with no refresh',
         run: async (t) => {
             const content = '<h2 style="margin: 0; height: 1200px">One</h2><h2 style="margin: 0; height: 1200px">Two</h2><h2 style="margin: 0; height: 1200px">Three</h2><div style="width: 6000px; height: 1px"></div>';
-            await t.call('plainMake', 'live', '', { hide: '', vertical: 'always', horizontal: 'always', 'marker-selector': 'h2' }, content);
+            await t.call('plainMake', 'live', '', { hide: '', vertical: 'always', horizontal: 'always', 'marker-selector': 'h2', indicator: 'pinned' }, content);
             try {
                 await t.frames(4);
                 const glyph = async (name: string) => {
@@ -3124,6 +3129,9 @@ const checks: Check[] = [
             await t.call('plainMake', 'eg', css, { hide: '', 'marker-selector': 'h2', 'marker-align': 'start', horizontal: 'hidden' }, html);
             try {
                 await t.frames(4);
+                // The bar is hidden at first and draws nothing; the delay to hide it again is 60s.
+                await t.call('wake', 'eg');
+                await t.frames(4);
                 const alpha = async (id: string) => +(await t.call<string>('look', 'eg', `marker:${id}`, '--ax-scrollbar-shown-alpha'));
                 const color = (id: string) => t.call<string>('look', 'eg', `marker:${id}`, '--ax-scrollbar-shown-color');
                 const engaged = async () => ({
@@ -3275,7 +3283,7 @@ const checks: Check[] = [
         name: 'part layers: thumb-layers, track-layers and the others reach the parts as `layers`; live, removed, unknown names',
         run: async (t) => {
             const html = '<div style="height: 3000px; width: 3000px"><h2 id="A" style="margin: 0">A</h2><h2 id="B" style="margin: 900px 0 0">B</h2></div>';
-            const attrs = { hide: '', vertical: 'always', horizontal: 'always', 'marker-selector': 'h2', 'thumb-layers': 'scrollbar-fill test-a', 'track-layers': 'scrollbar-fill test-b' };
+            const attrs = { hide: '', vertical: 'always', horizontal: 'always', 'marker-selector': 'h2', indicator: 'pinned', 'thumb-layers': 'scrollbar-fill test-a', 'track-layers': 'scrollbar-fill test-b' };
             await t.call('plainMake', 'ly', '', attrs, html);
             try {
                 await t.frames(4);
@@ -3435,6 +3443,8 @@ const checks: Check[] = [
                 ax-scroll-view::part(button) { --ax-scrollbar-part-glyph-color: rgb(0, 0, 0); --ax-scrollbar-glyph-width: 6px; --ax-scrollbar-glyph-height: 3px; --ax-scrollbar-glyph-offset: 5.5px; }`;
             await t.call('plainMake', 'tx', css, { hide: '', horizontal: 'hidden', vertical: 'always' }, '<div style="height: 3000px"></div>');
             try {
+                // A hidden bar draws nothing: show it.
+                await t.call('wake', 'tx');
                 await t.frames(4);
                 const bar = await t.box('ex' === 'ex' ? 'tx' : 'tx', 'scrollbar-vertical');
                 let track = await t.box('tx', 'track-vertical');
@@ -3492,6 +3502,8 @@ const checks: Check[] = [
             };
             await t.call('plainMake', 'w11', css, attrs, html);
             try {
+                // A hidden bar draws nothing: show it.
+                await t.call('wake', 'w11');
                 await t.frames(4);
                 // Tokens only, on the default parts.
                 expect((await t.call('tagOf', 'w11', 'thumb-vertical')) === 'AX-SCROLLBAR-THUMB', 'the thumb is not the default class');
@@ -4034,6 +4046,35 @@ const checks: Check[] = [
                 expect(quiet === 0, `${quiet} timers were set while the document grew`);
             } finally {
                 await s.close();
+            }
+        },
+    },
+    {
+        name: 'hidden bars are paused: the parts of a bar nobody has seen draw nothing, the first show fades in, and the parts pause again after the fade out',
+        run: async (t) => {
+            const css = 'ax-scroll-view { --ax-scrollbar-idle-delay: 200ms; --ax-scrollbar-fade-in-duration: 400ms; --ax-scrollbar-fade-out-duration: 100ms; }';
+            await t.call('plainMake', 'hp', css, { hide: '', horizontal: 'hidden', 'marker-selector': 'h2' }, '<div style="height: 3000px"><h2 style="margin: 0">A</h2><h2 style="margin: 900px 0 0">B</h2></div>');
+            try {
+                await t.frames(6);
+                expect(await t.call<boolean>('partPaused', 'hp', 'thumb-vertical'), 'the thumb of a bar that has not shown is not paused');
+                expect(await t.call<boolean>('partPaused', 'hp', 'button-end-vertical'), 'a button of a bar that has not shown is not paused');
+                expect(await t.call<boolean>('partPaused', 'hp', 'marker:ax-marker-0'), 'a marker of a bar that has not shown is not paused');
+                expect((await t.call<string>('inner', 'hp', 'thumb-vertical', '.layer-scrollbar-fill', 'class')) === '', 'a thumb that has not shown has built its layers');
+                const sampling = t.call<[number, string][]>('sample', 'hp', 'thumb-vertical', '--ax-scrollbar-shown-opacity', 250);
+                await t.sleep(40);
+                await t.call('wake', 'hp');
+                const rows = await sampling;
+                const first = rows.findIndex((r) => parseFloat(r[1]) > 0);
+                expect(first >= 0, 'the thumb never showed');
+                const early = rows.filter((r) => parseFloat(r[1]) > 0).slice(0, 4).map((r) => parseFloat(r[1]));
+                expect(early.length >= 3 && early[0] < 0.2 && early[early.length - 1] < 0.6, `the first show does not fade in: ${early}`);
+                expect(!(await t.call<boolean>('partPaused', 'hp', 'thumb-vertical')), 'the thumb is paused while shown');
+                // After the idle delay and the fade out, the parts pause again.
+                await t.sleep(1000);
+                expect(await t.call<boolean>('partPaused', 'hp', 'thumb-vertical'), 'the thumb did not pause after the fade out');
+                expect(await t.call<boolean>('partPaused', 'hp', 'marker:ax-marker-0'), 'a marker did not pause after the fade out');
+            } finally {
+                await t.call('plainRemove', 'hp');
             }
         },
     },
